@@ -207,11 +207,13 @@ button:disabled{opacity:.35;cursor:not-allowed}
   <div class="card-box" id="setupBox">
     <h3>Your Name</h3>
     <input id="playerName" value="You" maxlength="16">
-    <button class="btn-primary" id="btnCreate">🎨 Create Game (Host)</button>
-    <div class="divider">or join a friend's room</div>
+    <button class="btn-primary" id="btnSolo" style="background:#2ecc71;color:#000">▶ Play vs AI</button>
+    <div class="divider">online multiplayer</div>
+    <button class="btn-primary" id="btnCreate" style="background:#4a6af7">🎨 Create Room (Host)</button>
+    <div class="divider">or</div>
     <input id="roomInput" placeholder="6-letter room code" maxlength="6" style="text-transform:uppercase;letter-spacing:4px">
-    <button class="btn-primary" id="btnJoin" style="background:#2a2a5a">🔗 Join Game</button>
-    <div class="info-note">Empty player slots are filled with AI opponents</div>
+    <button class="btn-primary" id="btnJoin" style="background:#2a2a5a">🔗 Join Room</button>
+    <div class="info-note">Online play uses PeerJS — both players need internet access</div>
   </div>
   <div class="card-box" id="roomBox" style="display:none">
     <h3>Room Code — share with friends</h3>
@@ -392,10 +394,49 @@ function addLog(msg,hi=false){
 }
 function broadcastLog(msg,hi=false){addLog(msg,hi);toAll({t:'log',msg,hi});}
 
+function playSolo(name){
+  if(!name){toast('Enter your name first');return;}
+  isHost=true;myIndex=0;
+  const players=[
+    {name,type:'human'},
+    {name:'AI Alpha',type:'ai'},
+    {name:'AI Beta',type:'ai'},
+    {name:'AI Gamma',type:'ai'},
+  ];
+  G=freshState(players);
+  showScreen('sGame');
+  startGame();
+}
+
+const PEER_CFG={
+  debug:0,
+  config:{iceServers:[
+    {urls:'stun:stun.l.google.com:19302'},
+    {urls:'stun:stun1.l.google.com:19302'},
+    {urls:'stun:stun2.l.google.com:19302'},
+    {urls:'stun:global.stun.twilio.com:3478'},
+  ]}
+};
+
 function createRoom(name){
+  if(!name){toast('Enter your name first');return;}
   const code=genCode();
-  peer=new Peer('MODART-'+code,{debug:1});
-  peer.on('error',e=>toast('Peer error: '+e.type));
+  const btnC=document.getElementById('btnCreate');
+  btnC.disabled=true;btnC.textContent='Creating…';
+  if(peer){peer.destroy();peer=null;}
+
+  peer=new Peer('MODART-'+code,PEER_CFG);
+
+  peer.on('error',e=>{
+    btnC.disabled=false;btnC.textContent='🎨 Create Game (Host)';
+    if(e.type==='unavailable-id'){
+      toast('Room code conflict — retrying…');
+      setTimeout(()=>createRoom(name),400);
+    } else {
+      toast('Host error: '+e.type+'. Check your internet connection.');
+    }
+  });
+
   peer.on('open',()=>{
     isHost=true;myIndex=0;
     document.getElementById('lobbyCode').textContent=code;
@@ -404,11 +445,13 @@ function createRoom(name){
     const players=[{name,type:'human'},{name:'AI Alpha',type:'ai'},{name:'AI Beta',type:'ai'},{name:'AI Gamma',type:'ai'}];
     G=freshState(players);renderLobbySlots();
     document.getElementById('btnStart').disabled=false;
+    toast('Room created! Code: '+code);
   });
+
   peer.on('connection',conn=>{
     let slot=-1;
-    for(let i=1;i<4;i++) if(!conns[i]&&G.players[i].type==='ai'){slot=i;break;}
-    if(slot===-1){conn.close();return;}
+    for(let i=1;i<4;i++) if(!conns[i]&&G&&G.players[i].type==='ai'){slot=i;break;}
+    if(slot===-1){conn.close();toast('Room is full.');return;}
     conns[slot]=conn;
     conn.on('open',()=>{
       conn.send({t:'assigned',index:slot,players:G.players});
@@ -416,17 +459,53 @@ function createRoom(name){
       toAll({t:'lobby',players:G.players},slot);renderLobbySlots();
     });
     conn.on('data',msg=>onHostReceive(slot,msg));
-    conn.on('close',()=>{delete conns[slot];if(G&&G.phase==='TURN'){G.players[slot]={name:'Ghost'+(slot+1),type:'ai'};renderLobbySlots();toAll({t:'lobby',players:G.players});}});
+    conn.on('error',e=>console.warn('conn err slot '+slot,e));
+    conn.on('close',()=>{
+      delete conns[slot];
+      if(G&&G.phase==='TURN'){G.players[slot]={name:'Ghost'+(slot+1),type:'ai'};syncState();}
+      else if(G){G.players[slot]={name:'AI '+(slot+1),type:'ai'};renderLobbySlots();}
+    });
   });
 }
+
 function joinRoom(code,name){
-  peer=new Peer({debug:1});
-  peer.on('error',e=>toast('Could not connect: '+e.type));
+  if(!name){toast('Enter your name first');return;}
+  const btnJ=document.getElementById('btnJoin');
+  btnJ.disabled=true;btnJ.textContent='Connecting…';
+  if(peer){peer.destroy();peer=null;}
+
+  peer=new Peer(PEER_CFG);
+  let joinTimer=null;
+
+  const fail=(msg)=>{
+    clearTimeout(joinTimer);
+    btnJ.disabled=false;btnJ.textContent='🔗 Join Game';
+    toast(msg);
+    if(peer&&!peer.destroyed){peer.destroy();peer=null;}
+  };
+
+  joinTimer=setTimeout(()=>fail('Connection timed out. Is the room code correct?'),18000);
+
+  peer.on('error',e=>{
+    if(e.type==='peer-unavailable') fail('Room "'+code+'" not found. Check the code.');
+    else fail('Error: '+e.type);
+  });
+
   peer.on('open',()=>{
-    hostConn=peer.connect('MODART-'+code);
-    hostConn.on('open',()=>hostConn.send({t:'hello',name}));
+    hostConn=peer.connect('MODART-'+code,{reliable:true,serialization:'json'});
+
+    const connTimer=setTimeout(()=>fail('Host not responding. Is the host online?'),12000);
+
+    hostConn.on('open',()=>{
+      clearTimeout(joinTimer);
+      clearTimeout(connTimer);
+      btnJ.disabled=false;btnJ.textContent='🔗 Join Game';
+      hostConn.send({t:'hello',name});
+      toast('Connected — waiting for host…');
+    });
     hostConn.on('data',onClientReceive);
     hostConn.on('close',()=>toast('Disconnected from host.'));
+    hostConn.on('error',e=>{clearTimeout(connTimer);fail('Connection dropped: '+e.type);});
   });
 }
 function onHostReceive(fromIdx,msg){
@@ -1169,6 +1248,7 @@ function renderLobbySlots(){
 /* ═══════════════════════════════════════════════════
    EVENTS
 ═══════════════════════════════════════════════════ */
+document.getElementById('btnSolo').addEventListener('click',()=>{playSolo(document.getElementById('playerName').value.trim()||'You');});
 document.getElementById('btnCreate').addEventListener('click',()=>{createRoom(document.getElementById('playerName').value.trim()||'Host');});
 document.getElementById('btnJoin').addEventListener('click',()=>{
   const code=document.getElementById('roomInput').value.trim().toUpperCase();
