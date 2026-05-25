@@ -3,27 +3,31 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Modern Art – Online Board Game</title>
+<title>Modern Art</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/peerjs/1.5.4/peerjs.min.js"></script>
 <style>
+/* ── RESET ───────────────────────────────────────────── */
 *{box-sizing:border-box;margin:0;padding:0}
-body{font-family:'Segoe UI',Tahoma,sans-serif;background:#0e0e1c;color:#e8e8f0;min-height:100vh;font-size:14px}
+body{font-family:Arial,sans-serif;background:#1a7a1a;color:#000;min-height:100vh;overflow-x:hidden}
 input,button{font-family:inherit;font-size:14px}
-button{cursor:pointer;border:none;border-radius:6px;padding:8px 16px;transition:opacity .15s,transform .1s}
-button:hover:not(:disabled){opacity:.85}button:active:not(:disabled){transform:scale(.97)}
+button{cursor:pointer;border:none;border-radius:4px;padding:6px 14px}
+button:hover:not(:disabled){opacity:.85}
+button:active:not(:disabled){transform:scale(.97)}
 button:disabled{opacity:.4;cursor:not-allowed}
+
+/* ── SCREENS ──────────────────────────────────────────── */
 .screen{display:none;min-height:100vh}
 .screen.active{display:flex}
 
-/* LOBBY */
-#sLobby{flex-direction:column;align-items:center;justify-content:center;gap:22px;padding:30px}
-.logo{font-size:38px;font-weight:800;letter-spacing:-1px}.logo span{color:#e94560}
-.tagline{color:#666;font-size:12px;margin-top:-16px}
-.card-box{background:#14142e;border-radius:12px;padding:24px;width:100%;max-width:460px;display:flex;flex-direction:column;gap:14px}
+/* ── LOBBY ────────────────────────────────────────────── */
+#sLobby{flex-direction:column;align-items:center;justify-content:center;gap:20px;padding:20px;background:#0e0e1c;color:#e8e8f0}
+.logo{font-size:34px;font-weight:800}.logo span{color:#e94560}
+.tagline{color:#666;font-size:12px;margin-top:-14px}
+.card-box{background:#14142e;border-radius:12px;padding:22px;width:100%;max-width:440px;display:flex;flex-direction:column;gap:12px}
 .card-box h3{color:#778;font-size:11px;text-transform:uppercase;letter-spacing:.08em}
 .card-box input{background:#0a0a1a;border:1px solid #2a2a4a;border-radius:6px;padding:9px 12px;color:#e8e8f0;width:100%;outline:none}
 .card-box input:focus{border-color:#3a5af7}
-.btn-primary{background:#3a5af7;color:#fff;font-weight:700;width:100%;padding:11px}
+.btn-primary{background:#3a5af7;color:#fff;font-weight:700;width:100%;padding:11px;border-radius:6px}
 .divider{display:flex;align-items:center;gap:8px;color:#333;font-size:12px}
 .divider::before,.divider::after{content:'';flex:1;height:1px;background:#222}
 .slot{display:flex;align-items:center;gap:10px;background:#0a0a1a;border-radius:8px;padding:10px 14px;font-size:13px}
@@ -32,89 +36,125 @@ button:disabled{opacity:.4;cursor:not-allowed}
 .room-code{font-family:monospace;font-size:24px;letter-spacing:8px;color:#3a5af7;font-weight:700;text-align:center;background:#0a0a1a;padding:12px;border-radius:8px}
 .info-note{font-size:11px;color:#555;text-align:center}
 
-/* GAME */
-#sGame{flex-direction:column;height:100vh;overflow:hidden}
-#topBar{background:#080816;border-bottom:1px solid #1a1a2e;padding:6px 14px;display:flex;align-items:center;gap:14px;flex-shrink:0}
-.top-round{font-weight:700;font-size:12px;color:#3a5af7;white-space:nowrap}
-#topPlayers{display:flex;gap:10px;flex:1;justify-content:center;flex-wrap:wrap}
-.top-player{display:flex;flex-direction:column;align-items:center;padding:3px 10px;border-radius:6px;min-width:80px;gap:1px}
-.top-player.active-turn{background:#0d2010;outline:1px solid #2ecc71}
-.top-player.is-you{background:#0d0d28}
-.tp-name{font-size:11px;font-weight:600;color:#99a;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:90px}
-.tp-cash{font-size:13px;font-weight:700;color:#2ecc71}
-.tp-tag{font-size:9px;color:#444}
-#mainArea{display:flex;flex:1;overflow:hidden}
-#artistPanel{width:210px;flex-shrink:0;background:#0a0a1e;border-right:1px solid #1a1a2e;overflow-y:auto;padding:10px}
-#centerPanel{flex:1;display:flex;flex-direction:column;overflow:hidden}
-#boardArea{flex:1;overflow-y:auto;padding:12px;display:flex;flex-direction:column;gap:12px}
-.opponents-row{display:flex;gap:10px;flex-wrap:wrap}
-.opp-card{background:#101028;border-radius:8px;padding:10px 13px;flex:1;min-width:110px;max-width:190px}
-.opp-name{font-size:11px;font-weight:700;color:#99a;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.opp-meta{font-size:10px;color:#444;margin-bottom:5px}
-.opp-paintings{display:flex;gap:3px;flex-wrap:wrap;min-height:16px}
-.mini-p{width:16px;height:16px;border-radius:3px;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;color:#fff}
-#auctionArea{background:#101028;border-radius:10px;padding:14px;border:1px solid #2a2a3e;display:none}
-.auction-hdr{font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:#555;margin-bottom:8px}
-.auction-painting-row{display:flex;align-items:center;gap:14px;margin-bottom:12px}
-.big-card{width:60px;height:76px;border-radius:8px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;font-weight:700;color:#fff;flex-shrink:0}
-.big-card .bsym{font-size:22px}.big-card .bart{font-size:10px;opacity:.8}
-.auction-info h4{font-size:15px;font-weight:700;margin-bottom:3px}
-.auction-info p{font-size:12px;color:#778;line-height:1.5}
-.auction-controls{display:flex;flex-direction:column;gap:8px;margin-top:8px}
-.bid-row{display:flex;gap:8px;align-items:center}
-.bid-row input{width:110px;background:#0a0a1a;border:1px solid #2a2a4a;border-radius:6px;padding:7px 10px;color:#e8e8f0;outline:none}
-.bid-row input:focus{border-color:#3a5af7}
-.btn-blue{background:#3a5af7;color:#fff;font-weight:600}
-.btn-pass{background:#251a28;color:#c8a}
-.btn-buy{background:#112211;color:#6e6}
-.btn-red{background:#e94560;color:#fff;font-weight:700}
-.bids-row{display:flex;gap:5px;flex-wrap:wrap;margin-top:4px}
-.bid-chip{background:#12122a;border-radius:4px;padding:2px 7px;font-size:11px}
-.status-msg{font-size:12px;color:#99a;padding:4px 0;line-height:1.5}
-.waiting-msg{color:#555;font-size:12px;font-style:italic;padding:6px 0}
-.match-cards{display:flex;gap:6px;flex-wrap:wrap;margin:6px 0}
-#logPanel{height:80px;background:#070714;border-top:1px solid #1a1a2e;overflow-y:auto;padding:5px 14px;flex-shrink:0}
-.log-line{font-size:11px;color:#556;padding:1px 0}
-.log-line.hi{color:#99a}
-#handArea{height:108px;flex-shrink:0;background:#080816;border-top:1px solid #1a1a2e;padding:7px 14px;display:flex;align-items:center;gap:7px;overflow-x:auto}
-.hcard{width:50px;height:70px;border-radius:6px;cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;font-weight:700;color:#fff;transition:transform .15s,box-shadow .15s;flex-shrink:0}
-.hcard:hover{transform:translateY(-5px);box-shadow:0 6px 18px rgba(0,0,0,.5)}
-.hcard.dim{opacity:.3;cursor:not-allowed;transform:none!important;box-shadow:none!important}
-.hcard .csym{font-size:18px}.hcard .cart{font-size:9px;opacity:.75}.hcard .ctype{font-size:8px;opacity:.6}
-.hand-lbl{font-size:11px;color:#444;white-space:nowrap;flex-shrink:0}
-#purchasedPanel{width:148px;flex-shrink:0;background:#0a0a1e;border-left:1px solid #1a1a2e;overflow-y:auto;padding:9px}
-.pp-hdr{font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:#444;margin-bottom:7px}
-.pp-player{margin-bottom:12px}
-.pp-pname{font-size:11px;font-weight:700;color:#99a;margin-bottom:3px}
-.pp-paintings{display:flex;gap:3px;flex-wrap:wrap;min-height:16px}
-.ap-hdr{font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:#444;margin-bottom:7px}
-.artist-row{margin-bottom:13px}
-.artist-name{font-size:12px;font-weight:700;margin-bottom:3px}
-.artist-bar{display:flex;gap:2px;margin-bottom:3px}
-.abox{width:17px;height:17px;border-radius:3px;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;background:#121228;color:#333}
-.abox.filled{color:#fff}
-.artist-val{font-size:10px;color:#556}
+/* ── GAME SCREEN ──────────────────────────────────────── */
+#sGame{flex-direction:column;background:#1a7a1a;min-height:100vh;padding:5px;gap:3px}
 
-/* ROUND / GAME END */
-#sRoundEnd,#sGameEnd{flex-direction:column;align-items:center;justify-content:center;gap:20px;padding:30px}
-.results-box{background:#101028;border-radius:12px;padding:24px;width:100%;max-width:540px}
-.results-box h2{font-size:20px;font-weight:700;margin-bottom:14px}
+/* Player name typography */
+.pname-opp{font-size:14px;font-weight:bold;color:#ffff44;text-shadow:1px 1px 2px #000;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:120px}
+.pname-you{font-size:16px;font-weight:bold;color:#ff3333;text-shadow:1px 1px 2px #000}
+.pname-active{text-shadow:0 0 10px #fff,1px 1px 2px #000 !important}
+
+/* Count boxes */
+.hand-box{width:32px;height:32px;background:white;border:2px solid #888;display:flex;align-items:center;justify-content:center;font-size:17px;font-weight:bold;flex-shrink:0}
+.paint-box{min-width:26px;height:26px;border:2px solid rgba(0,0,0,0.4);display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:bold;color:white;padding:0 3px;flex-shrink:0}
+
+/* ── TOP PLAYER ───────────────────────────────────────── */
+#topPlayer{display:flex;flex-direction:column;align-items:center;gap:3px}
+.top-inner{display:flex;align-items:center;gap:5px}
+
+/* ── MID ROW ──────────────────────────────────────────── */
+#midRow{display:flex;gap:3px;flex:1;min-height:0}
+
+/* side player columns */
+.side-player{width:76px;flex-shrink:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px}
+
+/* ── BOARD CENTRE ─────────────────────────────────────── */
+#boardCenter{flex:1;display:flex;flex-direction:column;gap:0;min-width:0;overflow:hidden}
+
+/* Artist name headers */
+#artistNames{display:flex;background:#006600;gap:2px;padding:0 0 2px 0;flex-shrink:0}
+.a-name-cell{flex:1;background:white;text-align:center;font-size:12px;font-weight:bold;padding:4px 2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+
+/* Count progress bars */
+#countBars{display:flex;gap:2px;background:#006600;padding:0 0 2px 0;height:10px;flex-shrink:0}
+.cbar-wrap{flex:1;background:#444;overflow:hidden}
+.cbar-fill{height:100%;transition:width .3s}
+
+/* Log area */
+#logArea{background:white;border:3px solid #c8903a;overflow-y:auto;padding:5px 8px;font-family:'Courier New',monospace;font-size:12px;line-height:1.55;flex:1;min-height:80px;max-height:220px}
+.log-line{color:#000;padding:0}
+.log-line.hi{font-weight:bold}
+
+/* Value grid */
+#valueGrid{display:grid;grid-template-columns:repeat(5,1fr);gap:2px;background:#006600;border:2px solid #006600;padding:2px;flex-shrink:0}
+.vg-cell{background:white;text-align:center;font-size:13px;font-weight:bold;padding:3px 2px;min-height:22px;color:#333}
+
+/* ── BOTTOM PLAYER ────────────────────────────────────── */
+#bottomPlayer{display:flex;flex-direction:column;align-items:center;gap:3px;flex-shrink:0}
+.bot-inner{display:flex;align-items:center;gap:5px}
+
+/* ── BOTTOM ROW: Hand + Auction ───────────────────────── */
+#gameBottomRow{display:flex;gap:8px;align-items:flex-start;flex-shrink:0;min-height:110px}
+
+/* Hand */
+#handArea{display:flex;flex-wrap:wrap;gap:5px;flex:1;align-content:flex-start;padding:2px 0}
+.hcard{width:50px;height:50px;border:3px solid #c8a020;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:22px;font-weight:bold;color:white;transition:transform .15s,box-shadow .15s;text-shadow:1px 1px 3px rgba(0,0,0,.7);flex-shrink:0}
+.hcard:hover{transform:translateY(-5px);box-shadow:0 6px 14px rgba(0,0,0,.5)}
+.hcard.dim{opacity:.3;cursor:not-allowed;transform:none !important;box-shadow:none !important}
+.hcard.glow{border-color:#fff;box-shadow:0 0 8px #fff}
+.hand-lbl{font-size:11px;color:#c8e8c8;margin-bottom:2px;display:block}
+
+/* ── AUCTION PANEL ────────────────────────────────────── */
+#auctionPanel{width:195px;flex-shrink:0;background:#c8b888;border:2px solid #a09060;padding:8px;font-size:12px}
+.ap-field{margin-bottom:5px;font-size:12px;color:#333}
+.ap-fl{font-size:10px;color:#666;display:block}
+.ap-fv{font-weight:bold;font-size:13px}
+.ap-input{width:100%;background:white;border:1px solid #888;padding:4px 6px;font-size:13px;outline:none;margin-top:2px}
+.ap-row{display:flex;gap:4px;margin:5px 0;flex-wrap:wrap}
+.ap-btn{background:#d0d0c0;border:2px outset #a0a090;padding:4px 10px;font-size:12px;cursor:pointer;flex:1}
+.ap-btn:hover{background:#e0e0d0}
+.ap-btn.go{background:#a0c0a0}
+.ap-btn.no{background:#c0a0a0}
+.ap-msg{font-size:11px;color:#555;margin-top:4px;font-style:italic;line-height:1.4}
+.ap-bids{font-size:10px;color:#444;margin-top:3px;line-height:1.5}
+.ap-toggle{background:#c8c8b8;border:2px outset #a0a090;padding:3px 8px;font-size:11px;cursor:pointer;margin-top:5px;width:100%}
+.ap-match{display:flex;gap:3px;flex-wrap:wrap;margin:4px 0}
+.ap-match-btn{padding:3px 6px;border:1px solid #888;cursor:pointer;font-size:11px;background:white}
+
+/* ── ROUND / GAME END ─────────────────────────────────── */
+#sRoundEnd,#sGameEnd{flex-direction:column;align-items:center;justify-content:center;gap:16px;padding:20px;background:#1a7a1a}
+.results-box{background:#f5f0e0;border:3px solid #a09060;padding:18px;width:100%;max-width:500px}
+.results-box h2{font-size:18px;font-weight:bold;margin-bottom:10px;color:#333}
 .rtable{width:100%;border-collapse:collapse;font-size:13px}
-.rtable th{text-align:left;padding:5px 9px;font-size:10px;color:#556;text-transform:uppercase;border-bottom:1px solid #1a1a2e}
-.rtable td{padding:7px 9px;border-bottom:1px solid #0a0a14}
-.rtable tr:last-child td{border-bottom:none}
-.winner-row td{background:#0d1a0d!important}
-.art-chips{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:13px}
-.art-chip{padding:3px 9px;border-radius:5px;font-size:11px;font-weight:700;color:#fff}
-.wait-note{color:#555;font-size:12px;text-align:center;margin-top:8px}
+.rtable th{text-align:left;padding:5px 8px;background:#c8b888;font-size:11px;border:1px solid #a09060}
+.rtable td{padding:6px 8px;border:1px solid #ccc}
+.winner-row td{background:#d0e8d0 !important;font-weight:bold}
+.art-chips{display:flex;gap:5px;flex-wrap:wrap;margin-bottom:10px}
+.art-chip{padding:3px 8px;border-radius:3px;font-size:11px;font-weight:bold;color:white}
+.wait-note{color:#c8e8c8;font-size:12px;text-align:center;margin-top:6px}
+.res-btn{background:#3a5af7;color:white;font-weight:bold;padding:10px;width:100%;margin-top:12px;border-radius:4px;font-size:14px}
 
-/* ARTISTS */
-.a0{background:#c0392b}.a1{background:#7d3c98}.a2{background:#2471a3}.a3{background:#1e8449}.a4{background:#b7770d}
-.a0t{color:#c0392b!important}.a1t{color:#7d3c98!important}.a2t{color:#2471a3!important}.a3t{color:#1e8449!important}.a4t{color:#b7770d!important}
+/* ── ARTIST COLOURS ───────────────────────────────────── */
+.a0{background:#4a9a9a}.a1{background:#d94070}.a2{background:#8060c0}.a3{background:#508050}.a4{background:#c07840}
+.a0t{color:#4a9a9a !important}.a1t{color:#d94070 !important}.a2t{color:#8060c0 !important}.a3t{color:#508050 !important}.a4t{color:#c07840 !important}
 
-/* TOAST */
-#toast{position:fixed;bottom:28px;left:50%;transform:translateX(-50%);background:#1a2040;color:#e8e8f0;padding:9px 18px;border-radius:8px;font-size:13px;opacity:0;pointer-events:none;transition:opacity .3s;z-index:200;white-space:nowrap}
+/* ── TOAST ────────────────────────────────────────────── */
+#toast{position:fixed;bottom:18px;left:50%;transform:translateX(-50%);background:#1a2040;color:#e8e8f0;padding:8px 16px;border-radius:8px;font-size:13px;opacity:0;pointer-events:none;transition:opacity .3s;z-index:200;white-space:nowrap;max-width:90vw;text-align:center}
 #toast.show{opacity:1}
+
+/* ── MOBILE ───────────────────────────────────────────── */
+@media(max-width:640px){
+  #sGame{padding:3px;gap:2px}
+  .side-player{width:52px}
+  .hand-box{width:26px;height:26px;font-size:13px}
+  .paint-box{min-width:22px;height:22px;font-size:11px}
+  .a-name-cell{font-size:9px;padding:2px 1px}
+  .pname-opp{font-size:11px;max-width:80px}
+  .pname-you{font-size:13px}
+  #logArea{font-size:10px;max-height:140px}
+  .vg-cell{font-size:10px;min-height:18px;padding:2px 1px}
+  #gameBottomRow{flex-direction:column}
+  #auctionPanel{width:100%}
+  .hcard{width:44px;height:44px;font-size:19px}
+  .ap-btn{font-size:11px;padding:5px 6px}
+  .results-box{padding:12px}
+}
+@media(max-width:380px){
+  .side-player{width:38px}
+  .hcard{width:38px;height:38px;font-size:16px}
+  .a-name-cell{font-size:7px}
+  .hand-box{width:22px;height:22px;font-size:11px}
+}
 </style>
 </head>
 <body>
@@ -123,7 +163,6 @@ button:disabled{opacity:.4;cursor:not-allowed}
 <div id="sLobby" class="screen active">
   <div class="logo">Modern <span>Art</span></div>
   <div class="tagline">High Stakes Bidding in the Galleries — Reiner Knizia</div>
-
   <div class="card-box" id="setupBox">
     <h3>Your Name</h3>
     <input id="playerName" value="You" maxlength="16">
@@ -133,43 +172,46 @@ button:disabled{opacity:.4;cursor:not-allowed}
     <button class="btn-primary" id="btnJoin" style="background:#2a2a5a">🔗 Join Game</button>
     <div class="info-note">Empty player slots are filled with AI opponents</div>
   </div>
-
   <div class="card-box" id="roomBox" style="display:none">
     <h3>Room Code — share with friends</h3>
     <div class="room-code" id="lobbyCode">——————</div>
     <h3 style="margin-top:4px">Players</h3>
     <div id="lobbySlots"></div>
     <button class="btn-primary" id="btnStart" disabled>▶ Start Game</button>
-    <div class="info-note">You can start with any number of human players — AI fills the rest</div>
+    <div class="info-note">You can start with any number of players — AI fills the rest</div>
   </div>
 </div>
 
 <!-- ══ GAME ════════════════════════════════════════════════ -->
 <div id="sGame" class="screen">
-  <div id="topBar">
-    <div class="top-round" id="topRound">Round 1 / 4</div>
-    <div id="topPlayers"></div>
-  </div>
-  <div id="mainArea">
-    <div id="artistPanel">
-      <div class="ap-hdr">Artists</div>
-      <div id="artistRows"></div>
+
+  <!-- Top opponent -->
+  <div id="topPlayer"></div>
+
+  <!-- Mid row: left | board | right -->
+  <div id="midRow">
+    <div class="side-player" id="leftPlayer"></div>
+    <div id="boardCenter">
+      <div id="artistNames"></div>
+      <div id="countBars"></div>
+      <div id="logArea"></div>
+      <div id="valueGrid"></div>
     </div>
-    <div id="centerPanel">
-      <div id="boardArea">
-        <div class="opponents-row" id="opponentsRow"></div>
-        <div id="auctionArea"></div>
-      </div>
-      <div id="logPanel"></div>
-    </div>
-    <div id="purchasedPanel">
-      <div class="pp-hdr">Bought This Round</div>
-      <div id="ppContent"></div>
-    </div>
+    <div class="side-player" id="rightPlayer"></div>
   </div>
-  <div id="handArea">
-    <span class="hand-lbl" id="handLbl">Your hand:</span>
+
+  <!-- Bottom player (you) -->
+  <div id="bottomPlayer"></div>
+
+  <!-- Hand + Auction panel -->
+  <div id="gameBottomRow">
+    <div>
+      <span class="hand-lbl" id="handLbl">Your hand:</span>
+      <div id="handArea"></div>
+    </div>
+    <div id="auctionPanel"><div class="ap-msg">No auction in progress.</div></div>
   </div>
+
 </div>
 
 <!-- ══ ROUND END ═══════════════════════════════════════════ -->
@@ -178,10 +220,10 @@ button:disabled{opacity:.4;cursor:not-allowed}
     <h2 id="reTitle">End of Round</h2>
     <div class="art-chips" id="reArtists"></div>
     <table class="rtable">
-      <thead><tr><th>Player</th><th>Cash</th><th>Change</th></tr></thead>
+      <thead><tr><th>Player</th><th>Cash</th><th>This Round</th></tr></thead>
       <tbody id="reTbody"></tbody>
     </table>
-    <button class="btn-primary" id="btnNextRound" style="margin-top:16px;width:100%">▶ Next Round</button>
+    <button class="res-btn" id="btnNextRound">▶ Next Round</button>
     <div class="wait-note" id="reWaitNote" style="display:none">Waiting for host to advance…</div>
   </div>
 </div>
@@ -194,36 +236,41 @@ button:disabled{opacity:.4;cursor:not-allowed}
       <thead><tr><th>Rank</th><th>Player</th><th>Final Cash</th></tr></thead>
       <tbody id="geTbody"></tbody>
     </table>
-    <button class="btn-primary" id="btnPlayAgain" style="margin-top:16px;width:100%">🎨 Play Again</button>
+    <button class="res-btn" id="btnPlayAgain">🎨 Play Again</button>
   </div>
 </div>
 
-<!-- TOAST -->
 <div id="toast"></div>
 
 <script>
 'use strict';
 
-/* ─── CONSTANTS ─────────────────────────────────────────── */
-const ARTISTS   = ['Lite Metal','Yoko','Cristin P','Karl Gitter','Krypto'];
-const ACOLORS   = ['#c0392b','#7d3c98','#2471a3','#1e8449','#b7770d'];
-const TYPES     = ['Hidden','Fixed','Once Around','Open','Double'];
-const SYMBOLS   = ['★','$','↻','+','='];
-const RVALS     = [30,20,10];   // 1st/2nd/3rd place values per round
-const STARTCASH = 100;
-const INITHAND  = 9;
-const EXTRACARD = 4;
-const ENDTRIG   = 5;           // 5th painting triggers round end
+/* ═══════════════════════════════════════════════════════════
+   CONSTANTS
+═══════════════════════════════════════════════════════════ */
+const ARTISTS  = ['Lite Metal','Yoko','Cristin P.','Karl Gitter','Krypto'];
+const ACOLORS  = ['#4a9a9a','#d94070','#8060c0','#508050','#c07840'];
+const TYPES    = ['Hidden','Fixed','Once Around','Open','Double'];
+const SYMBOLS  = ['★','$','↻','+','='];
+const RVALS    = [30,20,10];
+const STARTCASH= 100;
+const INITHAND = 9;
+const EXTRACARDS=4;
+const ENDTRIG  = 5;
 
-/* ─── UTILITIES ─────────────────────────────────────────── */
+/* ═══════════════════════════════════════════════════════════
+   UTILITIES
+═══════════════════════════════════════════════════════════ */
 function shuffle(a){const r=[...a];for(let i=r.length-1;i>0;i--){const j=rnd(0,i);[r[i],r[j]]=[r[j],r[i]];}return r;}
 function rnd(lo,hi){return Math.floor(Math.random()*(hi-lo+1))+lo;}
 function clamp(v,lo,hi){return Math.max(lo,Math.min(hi,v));}
+function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
 function showScreen(id){document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));document.getElementById(id).classList.add('active');}
 function toast(msg){const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');clearTimeout(t._t);t._t=setTimeout(()=>t.classList.remove('show'),2800);}
 
-/* ─── DECK ──────────────────────────────────────────────── */
-// 3 of each type 0-3, 2 doubles per artist × 5 artists = 70 cards
+/* ═══════════════════════════════════════════════════════════
+   DECK  (70 cards: 3×4 types + 2 doubles per artist)
+═══════════════════════════════════════════════════════════ */
 function buildDeck(){
   const d=[];
   for(let a=0;a<5;a++){
@@ -233,33 +280,36 @@ function buildDeck(){
   return shuffle(d);
 }
 
-/* ─── GAME STATE ────────────────────────────────────────── */
-let G = null;   // game state (authoritative on host)
+/* ═══════════════════════════════════════════════════════════
+   GAME STATE
+═══════════════════════════════════════════════════════════ */
+let G=null;
 
 function freshState(players){
-  return {
-    phase:'TURN',              // TURN | AUCTION | ROUND_END | GAME_END
-    round:0,                   // 0-indexed
-    turn:0,                    // whose turn (plays card as auctioneer)
-    startPlayer:0,             // who starts next round
+  return{
+    phase:'TURN',
+    round:0,turn:0,startPlayer:0,
     deck:buildDeck(),
     hands:[[],[],[],[]],
-    purchased:[[],[],[],[]],   // paintings bought in current round
-    roundCounts:[0,0,0,0,0],   // auctioned per artist this round
-    accumulated:[0,0,0,0,0],   // cumulative artist values across rounds
+    purchased:[[],[],[],[]],
+    roundCounts:[0,0,0,0,0],
+    accumulated:[0,0,0,0,0],
     cash:[STARTCASH,STARTCASH,STARTCASH,STARTCASH],
-    players,                   // [{name,type:'human'|'ai'}]
+    cashBefore:[STARTCASH,STARTCASH,STARTCASH,STARTCASH],
+    players,
     auction:null,
-    cashBefore:[STARTCASH,STARTCASH,STARTCASH,STARTCASH], // snapshot before round for diff
+    roundHistory:[],
+    logHidden:false,
   };
 }
-
-function dealCards(g, count){
+function dealCards(g,count){
   for(let p=0;p<4;p++) for(let i=0;i<count;i++) if(g.deck.length) g.hands[p].push(g.deck.pop());
 }
 
-/* ─── NETWORKING ────────────────────────────────────────── */
-let peer=null, conns={}, isHost=false, myIndex=0, hostConn=null;
+/* ═══════════════════════════════════════════════════════════
+   NETWORKING
+═══════════════════════════════════════════════════════════ */
+let peer=null,conns={},isHost=false,myIndex=0,hostConn=null;
 
 function toHost(msg){
   if(isHost) onHostReceive(myIndex,msg);
@@ -270,32 +320,30 @@ function toAll(msg,exceptIdx=-1){
     if(Number(idx)!==exceptIdx) try{c.send(msg);}catch(e){}
   });
 }
-function log(msg,hi=false){
-  const p=document.getElementById('logPanel');
+function addLog(msg,hi=false){
+  const el=document.getElementById('logArea');
+  if(!el) return;
   const d=document.createElement('div');
   d.className='log-line'+(hi?' hi':'');
   d.textContent=msg;
-  p.appendChild(d);
-  p.scrollTop=p.scrollHeight;
+  el.appendChild(d);
+  el.scrollTop=el.scrollHeight;
 }
-function broadcastLog(msg,hi=false){log(msg,hi);toAll({t:'log',msg,hi});}
+function broadcastLog(msg,hi=false){
+  addLog(msg,hi);
+  toAll({t:'log',msg,hi});
+}
 
 function createRoom(name){
   const code=genCode();
   peer=new Peer('MODART-'+code,{debug:1});
   peer.on('error',e=>toast('Peer error: '+e.type));
   peer.on('open',()=>{
-    isHost=true; myIndex=0;
+    isHost=true;myIndex=0;
     document.getElementById('lobbyCode').textContent=code;
     document.getElementById('setupBox').style.display='none';
-    document.getElementById('roomBox').style.display='flex';
-    document.getElementById('roomBox').style.flexDirection='column';
-    const players=[
-      {name,type:'human'},
-      {name:'AI Alpha',type:'ai'},
-      {name:'AI Beta',type:'ai'},
-      {name:'AI Gamma',type:'ai'}
-    ];
+    document.getElementById('roomBox').style.cssText='display:flex;flex-direction:column';
+    const players=[{name,type:'human'},{name:'AI Alpha',type:'ai'},{name:'AI Beta',type:'ai'},{name:'AI Gamma',type:'ai'}];
     G=freshState(players);
     renderLobbySlots();
     document.getElementById('btnStart').disabled=false;
@@ -314,15 +362,10 @@ function createRoom(name){
     conn.on('data',msg=>onHostReceive(slot,msg));
     conn.on('close',()=>{
       delete conns[slot];
-      if(G&&G.phase==='TURN'){
-        G.players[slot]={name:'Ghost'+(slot+1),type:'ai'};
-        renderLobbySlots();
-        toAll({t:'lobby',players:G.players});
-      }
+      if(G&&G.phase==='TURN'){G.players[slot]={name:'Ghost'+(slot+1),type:'ai'};renderLobbySlots();toAll({t:'lobby',players:G.players});}
     });
   });
 }
-
 function joinRoom(code,name){
   peer=new Peer({debug:1});
   peer.on('error',e=>toast('Could not connect: '+e.type));
@@ -333,84 +376,60 @@ function joinRoom(code,name){
     hostConn.on('close',()=>toast('Disconnected from host.'));
   });
 }
-
 function onHostReceive(fromIdx,msg){
   if(!isHost) return;
-  if(msg.t==='hello'){
-    if(G.players[fromIdx]) G.players[fromIdx].name=(msg.name||'Player').slice(0,16);
-    toAll({t:'lobby',players:G.players});
-    renderLobbySlots();
-    return;
-  }
+  if(msg.t==='hello'){if(G.players[fromIdx])G.players[fromIdx].name=(msg.name||'Player').slice(0,16);toAll({t:'lobby',players:G.players});renderLobbySlots();return;}
   if(msg.t==='action') processAction(fromIdx,msg);
 }
-
 function onClientReceive(msg){
   switch(msg.t){
     case 'assigned':
-      myIndex=msg.index;
-      G=freshState(msg.players);
+      myIndex=msg.index; G=freshState(msg.players);
       document.getElementById('setupBox').style.display='none';
-      document.getElementById('roomBox').style.display='flex';
-      document.getElementById('roomBox').style.flexDirection='column';
+      document.getElementById('roomBox').style.cssText='display:flex;flex-direction:column';
       document.getElementById('lobbyCode').textContent='(joined)';
       document.getElementById('btnStart').style.display='none';
-      renderLobbySlots();
-      toast('Connected! You are slot '+(msg.index+1));
-      break;
-    case 'lobby':
-      if(G) G.players=msg.players;
-      renderLobbySlots();
-      break;
-    case 'state':
-      G=msg.state;
-      showScreen('sGame');
-      renderGame();
-      break;
-    case 'roundEnd':
-      G=msg.state;
-      showRoundEndScreen(msg.placements,msg.gainMap,msg.cashBefore);
-      break;
-    case 'gameEnd':
-      G=msg.state;
-      showGameEndScreen();
-      break;
-    case 'log':
-      log(msg.msg,msg.hi);
-      break;
-    case 'toast':
-      toast(msg.msg);
-      break;
+      renderLobbySlots(); toast('Connected! You are slot '+(msg.index+1)); break;
+    case 'lobby': if(G)G.players=msg.players; renderLobbySlots(); break;
+    case 'state': G=msg.state; showScreen('sGame'); renderGame(); break;
+    case 'roundEnd': G=msg.state; showRoundEndScreen(msg.placements,msg.gainMap,msg.cashBefore); break;
+    case 'gameEnd': G=msg.state; showGameEndScreen(); break;
+    case 'log': addLog(msg.msg,msg.hi); break;
+    case 'toast': toast(msg.msg); break;
   }
 }
-
 function syncState(){
   if(!isHost) return;
   toAll({t:'state',state:G});
   renderGame();
   scheduleAI();
 }
-
 function genCode(){
   const c='ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
   return Array.from({length:6},()=>c[rnd(0,c.length-1)]).join('');
 }
 
-/* ─── GAME FLOW ─────────────────────────────────────────── */
+/* ═══════════════════════════════════════════════════════════
+   GAME FLOW
+═══════════════════════════════════════════════════════════ */
 function startGame(){
   if(!isHost) return;
   dealCards(G,INITHAND);
   G.cashBefore=[...G.cash];
-  G.round=0; G.turn=0; G.startPlayer=0; G.phase='TURN';
-  broadcastLog('Round 1 begins! '+G.players[0].name+"'s turn.",true);
+  G.round=0;G.turn=0;G.startPlayer=0;G.phase='TURN';
+  const ts=new Date().toLocaleString();
+  addLog('Modern Art');
+  addLog('Game started on '+ts);
+  addLog('--------------------');
+  addLog('Round 1');
+  addLog('--------------------');
   syncState();
 }
 
 function processAction(fromIdx,msg){
   if(!isHost) return;
-  const {action,data}=msg;
+  const{action,data}=msg;
 
-  // ── Play card ──────────────────────────────────────────
   if(action==='playCard'){
     if(G.phase!=='TURN'||fromIdx!==G.turn) return;
     const idx=G.hands[fromIdx].findIndex(c=>c.id===data.cardId);
@@ -419,40 +438,31 @@ function processAction(fromIdx,msg){
     beginAuction(fromIdx,card);
     return;
   }
-
-  // ── Double: second card ────────────────────────────────
   if(action==='doubleSecond'){
     const au=G.auction;
     if(!au||au.subPhase!=='dblChoose'||au.dblWaiting!==fromIdx) return;
     if(data.cardId===null){
-      // pass
       au.dblWaiting=(au.dblWaiting+1)%4;
       if(au.dblWaiting===au.auctioneer){
-        // no one played — auctioneer gets first card free
-        broadcastLog(G.players[au.auctioneer].name+' gets the painting for free! (no second card played)',true);
+        broadcastLog(G.players[au.auctioneer].name+' gets the painting for free!',true);
         G.purchased[au.auctioneer].push(au.cards[0]);
         G.roundCounts[au.artist]++;
         afterAuction(au);
-      } else {
-        syncState();
-      }
+      } else syncState();
     } else {
-      // play second card
       const hand=G.hands[fromIdx];
       const idx=hand.findIndex(c=>c.id===data.cardId);
       if(idx===-1||hand[idx].artist!==au.artist||hand[idx].type===4) return;
       const card2=hand.splice(idx,1)[0];
       au.cards.push(card2);
-      au.auctioneer=fromIdx; // player who plays second becomes auctioneer
+      au.auctioneer=fromIdx;
       au.type=card2.type;
       au.subPhase=null;
-      broadcastLog(G.players[fromIdx].name+' plays a second '+ARTISTS[au.artist]+' ('+TYPES[card2.type]+') — double auction!',true);
+      broadcastLog(G.players[fromIdx].name+' pairs a second '+ARTISTS[au.artist]+' ('+TYPES[card2.type]+')!',true);
       initAuctionType(au);
     }
     return;
   }
-
-  // ── Hidden: submit bid ─────────────────────────────────
   if(action==='hiddenBid'){
     const au=G.auction;
     if(!au||au.type!==0||au.subPhase!=='hidCollect') return;
@@ -462,8 +472,6 @@ function processAction(fromIdx,msg){
     else syncState();
     return;
   }
-
-  // ── Fixed: auctioneer sets price ───────────────────────
   if(action==='fixedSetPrice'){
     const au=G.auction;
     if(!au||au.type!==1||au.subPhase!=='fixSetPrice'||fromIdx!==au.auctioneer) return;
@@ -474,8 +482,6 @@ function processAction(fromIdx,msg){
     syncState();
     return;
   }
-
-  // ── Fixed: buy or pass ─────────────────────────────────
   if(action==='fixedDecide'){
     const au=G.auction;
     if(!au||au.type!==1||au.subPhase!=='fixSelling'||fromIdx!==au.currentBidder) return;
@@ -486,536 +492,427 @@ function processAction(fromIdx,msg){
       broadcastLog(G.players[fromIdx].name+' passes.');
       au.currentBidder=(au.currentBidder+1)%4;
       if(au.currentBidder===au.auctioneer){
-        // all passed — auctioneer forced to buy (pays bank)
-        broadcastLog('Everyone passed — '+G.players[au.auctioneer].name+' must buy own painting for $'+au.price+' (paid to bank).',true);
+        broadcastLog('Everyone passed — '+G.players[au.auctioneer].name+' must buy own painting for $'+au.price+' (→ bank).',true);
         G.cash[au.auctioneer]-=au.price;
         G.purchased[au.auctioneer].push(...au.cards);
         afterAuction(au);
-      } else {
-        syncState();
-      }
+      } else syncState();
     }
     return;
   }
-
-  // ── Once Around: bid ───────────────────────────────────
   if(action==='onceAroundBid'){
     const au=G.auction;
     if(!au||au.type!==2||fromIdx!==au.currentBidder) return;
     const bid=parseInt(data.bid)||0;
     if(bid>au.highBid&&bid<=G.cash[fromIdx]){
-      au.highBid=bid; au.highBidder=fromIdx;
+      au.highBid=bid;au.highBidder=fromIdx;
       broadcastLog(G.players[fromIdx].name+' bids $'+bid+'.',true);
-    } else {
-      broadcastLog(G.players[fromIdx].name+' passes.');
-    }
-    // advance
+    } else broadcastLog(G.players[fromIdx].name+' passes.');
     au.oaCount=(au.oaCount||0)+1;
-    if(au.oaCount>=4){
-      resolveOnceAround(au);
-    } else {
-      au.currentBidder=(au.currentBidder+1)%4;
-      syncState();
-    }
+    if(au.oaCount>=4) resolveOnceAround(au);
+    else{au.currentBidder=(au.currentBidder+1)%4;syncState();}
     return;
   }
-
-  // ── Open: bid ──────────────────────────────────────────
   if(action==='openBid'){
     const au=G.auction;
     if(!au||au.type!==3) return;
     const bid=parseInt(data.bid)||0;
     if(bid>au.highBid&&bid<=G.cash[fromIdx]&&bid>0){
-      au.highBid=bid; au.highBidder=fromIdx;
-      au.openPasses=0; // reset passes on new bid
+      au.highBid=bid;au.highBidder=fromIdx;au.openPasses=0;
       broadcastLog(G.players[fromIdx].name+' bids $'+bid+'!',true);
       syncState();
     }
     return;
   }
-
-  // ── Open: pass ─────────────────────────────────────────
   if(action==='openPass'){
     const au=G.auction;
     if(!au||au.type!==3) return;
     au.openPasses=(au.openPasses||0)+1;
     broadcastLog(G.players[fromIdx].name+' passes.');
-    const needed=au.highBidder>=0?3:4; // if someone bid, 3 others pass = done; else 4 passes = no bids
+    const needed=au.highBidder>=0?3:4;
     if(au.openPasses>=needed){
       if(au.highBidder<0){
-        broadcastLog('No bids — '+G.players[au.auctioneer].name+' gets the painting free!',true);
+        broadcastLog(G.players[au.auctioneer].name+' gets it for free! (no bids)',true);
         G.purchased[au.auctioneer].push(...au.cards);
         afterAuction(au);
       } else {
         broadcastLog(G.players[au.highBidder].name+' wins open auction for $'+au.highBid+'!',true);
         completeAuction(au.highBidder,au.highBid,au.auctioneer,au);
       }
-    } else {
-      syncState();
-    }
+    } else syncState();
     return;
   }
 }
 
-/* ─── AUCTION LOGIC ─────────────────────────────────────── */
+/* ═══════════════════════════════════════════════════════════
+   AUCTION LOGIC
+═══════════════════════════════════════════════════════════ */
 function beginAuction(auctioneer,card){
-  // increment count; check if 5th of artist → round end (card discarded)
   G.roundCounts[card.artist]++;
   if(G.roundCounts[card.artist]>=ENDTRIG){
-    broadcastLog(G.players[auctioneer].name+' plays the 5th '+ARTISTS[card.artist]+' — round over! (card discarded)',true);
+    broadcastLog(G.players[auctioneer].name+' plays the 5th '+ARTISTS[card.artist]+' — round ends! (card discarded)',true);
     G.startPlayer=(auctioneer+1)%4;
     endRound();
     return;
   }
-
   G.auction={
-    auctioneer, cards:[card], artist:card.artist,
-    type:card.type, subPhase:null,
-    bids:null, price:null, highBid:0, highBidder:-1,
-    currentBidder:-1, dblWaiting:-1, oaCount:0, openPasses:0,
+    auctioneer,cards:[card],artist:card.artist,type:card.type,subPhase:null,
+    bids:null,price:null,highBid:0,highBidder:-1,
+    currentBidder:-1,dblWaiting:-1,oaCount:0,openPasses:0,
   };
-
   if(card.type===4){
-    // Double: auctioneer chooses first
     G.auction.subPhase='dblChoose';
     G.auction.dblWaiting=auctioneer;
-    broadcastLog(G.players[auctioneer].name+' plays DOUBLE ('+ARTISTS[card.artist]+')! Choosing whether to pair…',true);
-    G.phase='AUCTION';
-    syncState();
-    return;
+    broadcastLog(G.players[auctioneer].name+':',true);
+    broadcastLog('DOUBLE ('+ARTISTS[card.artist]+') — can anyone pair?',true);
+    G.phase='AUCTION';syncState();return;
   }
-
-  broadcastLog(G.players[auctioneer].name+' auctions: '+ARTISTS[card.artist]+' ['+TYPES[card.type]+']',true);
+  broadcastLog(G.players[auctioneer].name+':');
+  broadcastLog(ARTISTS[card.artist]+' ['+TYPES[card.type]+'] up for auction.',true);
   G.phase='AUCTION';
   initAuctionType(G.auction);
 }
-
 function initAuctionType(au){
   switch(au.type){
-    case 0: // Hidden
-      au.bids=[null,null,null,null];
-      au.subPhase='hidCollect';
-      break;
-    case 1: // Fixed
-      au.subPhase='fixSetPrice';
-      break;
-    case 2: // Once Around
-      au.currentBidder=(au.auctioneer+1)%4;
-      au.highBid=0; au.highBidder=-1; au.oaCount=0;
-      break;
-    case 3: // Open
-      au.highBid=0; au.highBidder=-1; au.openPasses=0;
-      break;
+    case 0:au.bids=[null,null,null,null];au.subPhase='hidCollect';break;
+    case 1:au.subPhase='fixSetPrice';break;
+    case 2:au.currentBidder=(au.auctioneer+1)%4;au.highBid=0;au.highBidder=-1;au.oaCount=0;break;
+    case 3:au.highBid=0;au.highBidder=-1;au.openPasses=0;break;
   }
   syncState();
 }
-
 function resolveHidden(au){
   let best=-1,winner=-1;
-  // auctioneer wins all ties (check auctioneer first)
   const order=[au.auctioneer,...[0,1,2,3].filter(i=>i!==au.auctioneer)];
   for(const p of order) if(au.bids[p]>best){best=au.bids[p];winner=p;}
   const reveal=au.bids.map((b,i)=>G.players[i].name+':$'+b).join(' | ');
-  broadcastLog('Bids: '+reveal,true);
+  broadcastLog('Bids revealed: '+reveal,true);
   if(winner<0||best<=0){
-    broadcastLog('No bids — '+G.players[au.auctioneer].name+' keeps the painting.',true);
-    G.purchased[au.auctioneer].push(...au.cards);
-    afterAuction(au);
+    broadcastLog(G.players[au.auctioneer].name+' keeps the painting (no bids).',true);
+    G.purchased[au.auctioneer].push(...au.cards);afterAuction(au);
   } else {
-    broadcastLog(G.players[winner].name+' wins hidden auction for $'+best+'!',true);
+    broadcastLog(G.players[winner].name+' wins for $'+best+'!',true);
     completeAuction(winner,best,au.auctioneer,au);
   }
 }
-
 function resolveOnceAround(au){
   if(au.highBidder<0){
-    broadcastLog('No bids — '+G.players[au.auctioneer].name+' gets the painting free!',true);
-    G.purchased[au.auctioneer].push(...au.cards);
-    afterAuction(au);
+    broadcastLog(G.players[au.auctioneer].name+' gets it free (no bids).',true);
+    G.purchased[au.auctioneer].push(...au.cards);afterAuction(au);
   } else {
-    broadcastLog(G.players[au.highBidder].name+' wins once-around for $'+au.highBid+'!',true);
+    broadcastLog(G.players[au.highBidder].name+' wins for $'+au.highBid+'!',true);
     completeAuction(au.highBidder,au.highBid,au.auctioneer,au);
   }
 }
-
 function completeAuction(winner,amount,auctioneer,au){
   if(winner===auctioneer){
-    // auctioneer buys own painting — pays bank
     G.cash[winner]-=amount;
-    broadcastLog(G.players[winner].name+' buys own painting ($'+amount+' → bank).');
+    broadcastLog(G.players[winner].name+' buys own painting — $'+amount+' to bank.');
   } else {
-    G.cash[winner]-=amount;
-    G.cash[auctioneer]+=amount;
-    broadcastLog(G.players[winner].name+' pays $'+amount+' to '+G.players[auctioneer].name+'.');
+    G.cash[winner]-=amount;G.cash[auctioneer]+=amount;
+    broadcastLog(G.players[winner].name+' paid $'+amount+' to '+G.players[auctioneer].name+'.');
   }
   G.purchased[winner].push(...au.cards);
   afterAuction(au);
 }
-
 function afterAuction(au){
-  // For double: second card also counts toward round total
   if(au.cards.length===2){
     G.roundCounts[au.artist]++;
     if(G.roundCounts[au.artist]>=ENDTRIG){
-      broadcastLog('5th '+ARTISTS[au.artist]+' — round over!',true);
-      G.startPlayer=(au.auctioneer+1)%4;
-      endRound();
-      return;
+      broadcastLog('5th '+ARTISTS[au.artist]+' reached — round over!',true);
+      G.startPlayer=(au.auctioneer+1)%4;endRound();return;
     }
   }
   const next=(au.auctioneer+1)%4;
-  G.turn=next; G.phase='TURN'; G.auction=null;
-  broadcastLog(G.players[next].name+"'s turn.");
+  G.turn=next;G.phase='TURN';G.auction=null;
+  broadcastLog('----');
   syncState();
 }
 
-/* ─── ROUND END ─────────────────────────────────────────── */
+/* ═══════════════════════════════════════════════════════════
+   ROUND END
+═══════════════════════════════════════════════════════════ */
 function endRound(){
-  // Calculate placements
   const counts=[...G.roundCounts];
-  // Sort by count desc, ties broken by artist index asc (Lite Metal wins all ties)
   const order=[0,1,2,3,4].sort((a,b)=>counts[b]-counts[a]||a-b);
-  const placements={}; // artist → place (0,1,2)
+  const placements={};
   for(let i=0;i<3;i++) if(counts[order[i]]>0) placements[order[i]]=i;
-
   const gainMap={};
   ARTISTS.forEach((_,a)=>{
     const place=placements[a];
-    if(place!==undefined){
-      G.accumulated[a]+=RVALS[place];
-      gainMap[a]=RVALS[place];
-    } else {
-      gainMap[a]=0;
-    }
+    if(place!==undefined){G.accumulated[a]+=RVALS[place];gainMap[a]=RVALS[place];}
+    else gainMap[a]=0;
   });
-
   const cashBefore=[...G.cash];
-  // Pay out: players sell purchased paintings at accumulated value
   for(let p=0;p<4;p++){
     let earned=0;
-    G.purchased[p].forEach(card=>{
-      if(placements[card.artist]!==undefined){
-        earned+=G.accumulated[card.artist];
-      }
-    });
+    G.purchased[p].forEach(card=>{if(placements[card.artist]!==undefined) earned+=G.accumulated[card.artist];});
     G.cash[p]+=earned;
-    if(earned>0) broadcastLog(G.players[p].name+' sold paintings for $'+earned+'.');
+    if(earned>0) broadcastLog(G.players[p].name+': sold paintings for $'+earned+'.');
     G.purchased[p]=[];
   }
-
-  G.roundCounts=[0,0,0,0,0];
-  G.auction=null;
-  G.phase='ROUND_END';
-
-  broadcastLog('─── Round '+(G.round+1)+' over! ───',true);
-
-  if(isHost){
-    toAll({t:'roundEnd',state:G,placements,gainMap,cashBefore});
-    showRoundEndScreen(placements,gainMap,cashBefore);
-  }
+  G.roundHistory.push({placements:{...placements},values:[...G.accumulated],gainMap:{...gainMap}});
+  G.roundCounts=[0,0,0,0,0];G.auction=null;G.phase='ROUND_END';
+  broadcastLog('==================',true);
+  broadcastLog('Round '+(G.round+1)+' over!',true);
+  if(isHost){toAll({t:'roundEnd',state:G,placements,gainMap,cashBefore});showRoundEndScreen(placements,gainMap,cashBefore);}
 }
-
 function showRoundEndScreen(placements,gainMap,cashBefore){
   showScreen('sRoundEnd');
   document.getElementById('reTitle').textContent='End of Round '+(G.round+1);
-
+  const ac=document.getElementById('reArtists');ac.innerHTML='';
   const sorted=Object.entries(placements).sort((a,b)=>a[1]-b[1]);
-  const ac=document.getElementById('reArtists');
-  ac.innerHTML='';
-  if(sorted.length===0){
-    ac.textContent='No artist placed this round.';
-  } else {
-    sorted.forEach(([a,place])=>{
-      const chip=document.createElement('div');
-      chip.className='art-chip a'+a;
-      chip.textContent=['🥇','🥈','🥉'][place]+' '+ARTISTS[a]+' +$'+gainMap[a]+' (total $'+G.accumulated[a]+')';
-      ac.appendChild(chip);
-    });
-  }
-
-  const tbody=document.getElementById('reTbody');
-  tbody.innerHTML='';
+  if(!sorted.length)ac.textContent='No artist placed.';
+  else sorted.forEach(([a,place])=>{
+    const ch=document.createElement('div');
+    ch.className='art-chip a'+a;
+    ch.textContent=['🥇','🥈','🥉'][place]+' '+ARTISTS[a]+' +$'+gainMap[a]+' (total $'+G.accumulated[a]+')';
+    ac.appendChild(ch);
+  });
+  const tb=document.getElementById('reTbody');tb.innerHTML='';
   for(let p=0;p<4;p++){
     const tr=document.createElement('tr');
-    if(p===myIndex) tr.classList.add('winner-row');
+    if(p===myIndex)tr.classList.add('winner-row');
     const diff=G.cash[p]-cashBefore[p];
-    tr.innerHTML=`<td>${G.players[p].name}${p===myIndex?' ★':''}</td>
+    tr.innerHTML=`<td>${esc(G.players[p].name)}${p===myIndex?' ★':''}</td>
       <td>$${G.cash[p]}</td>
-      <td style="color:${diff>0?'#6e6':diff<0?'#e94560':'#666'}">${diff>0?'+':''}$${diff}</td>`;
-    tbody.appendChild(tr);
+      <td style="color:${diff>0?'green':diff<0?'red':'#666'}">${diff>=0?'+':''}$${diff}</td>`;
+    tb.appendChild(tr);
   }
-
   const btn=document.getElementById('btnNextRound');
   const note=document.getElementById('reWaitNote');
   if(isHost){
     btn.style.display='block';
     btn.textContent=G.round>=3?'🏆 View Final Results':'▶ Begin Round '+(G.round+2);
     note.style.display='none';
-  } else {
-    btn.style.display='none';
-    note.style.display='block';
-  }
+  } else {btn.style.display='none';note.style.display='block';}
 }
-
 function showGameEndScreen(){
   showScreen('sGameEnd');
   const standings=[0,1,2,3].map(p=>({p,cash:G.cash[p],name:G.players[p].name})).sort((a,b)=>b.cash-a.cash);
-  const tb=document.getElementById('geTbody');
-  tb.innerHTML='';
+  const tb=document.getElementById('geTbody');tb.innerHTML='';
   standings.forEach((s,rank)=>{
     const tr=document.createElement('tr');
-    if(s.p===myIndex) tr.classList.add('winner-row');
-    tr.innerHTML=`<td>${['🥇','🥈','🥉','4️⃣'][rank]}</td><td>${s.name}${s.p===myIndex?' ★':''}</td><td>$${s.cash}</td>`;
+    if(s.p===myIndex)tr.classList.add('winner-row');
+    tr.innerHTML=`<td>${['🥇','🥈','🥉','4️⃣'][rank]}</td><td>${esc(s.name)}${s.p===myIndex?' ★':''}</td><td>$${s.cash}</td>`;
     tb.appendChild(tr);
   });
 }
-
 function beginNextRound(){
   if(!isHost) return;
   G.round++;
-  if(G.round>=4){
-    G.phase='GAME_END';
-    toAll({t:'gameEnd',state:G});
-    showGameEndScreen();
-    return;
-  }
-  if(G.round<=2) dealCards(G,EXTRACARD);
+  if(G.round>=4){G.phase='GAME_END';toAll({t:'gameEnd',state:G});showGameEndScreen();return;}
+  if(G.round<=2) dealCards(G,EXTRACARDS);
   G.cashBefore=[...G.cash];
-  G.turn=G.startPlayer; G.phase='TURN'; G.auction=null;
-  broadcastLog('── Round '+(G.round+1)+' begins! '+G.players[G.turn].name+"'s turn. ──",true);
+  G.turn=G.startPlayer;G.phase='TURN';G.auction=null;
+  addLog('--------------------');
+  addLog('Round '+(G.round+1));
+  addLog('--------------------');
   syncState();
 }
 
-/* ─── AI ────────────────────────────────────────────────── */
+/* ═══════════════════════════════════════════════════════════
+   AI
+═══════════════════════════════════════════════════════════ */
 let aiTimer=null;
 function scheduleAI(){clearTimeout(aiTimer);aiTimer=setTimeout(runAI,800);}
 
 function runAI(){
   if(!isHost||!G) return;
-  const {phase,turn,players,auction:au}=G;
-
-  // Main turn — AI plays a card
+  const{phase,turn,players,auction:au}=G;
   if(phase==='TURN'&&players[turn].type==='ai'){
-    const card=aiPickCard(turn);
-    if(!card) return;
-    const idx=G.hands[turn].findIndex(c=>c.id===card.id);
-    G.hands[turn].splice(idx,1);
-    beginAuction(turn,card);
-    return;
+    const card=aiPickCard(turn);if(!card) return;
+    const idx=G.hands[turn].findIndex(c=>c.id===card.id);G.hands[turn].splice(idx,1);
+    beginAuction(turn,card);return;
   }
-
   if(phase==='AUCTION'&&au){
-    // Double choose
     if(au.subPhase==='dblChoose'&&players[au.dblWaiting].type==='ai'){
       const w=au.dblWaiting;
       const matching=G.hands[w].filter(c=>c.artist===au.artist&&c.type!==4);
       const shouldPlay=matching.length>0&&G.accumulated[au.artist]>=15&&G.round>=1&&rnd(0,2)>0;
-      if(shouldPlay){
-        const c2=matching[rnd(0,matching.length-1)];
-        processAction(w,{t:'action',action:'doubleSecond',data:{cardId:c2.id}});
-      } else {
-        processAction(w,{t:'action',action:'doubleSecond',data:{cardId:null}});
-      }
+      if(shouldPlay){const c2=matching[rnd(0,matching.length-1)];processAction(w,{t:'action',action:'doubleSecond',data:{cardId:c2.id}});}
+      else processAction(w,{t:'action',action:'doubleSecond',data:{cardId:null}});
       return;
     }
-
-    // Hidden bids
     if(au.type===0&&au.subPhase==='hidCollect'){
-      let acted=false;
-      for(let p=0;p<4;p++){
-        if(players[p].type==='ai'&&au.bids[p]===null){
-          const bid=aiBid(p,au);
-          processAction(p,{t:'action',action:'hiddenBid',data:{bid}});
-          acted=true;
-        }
-      }
+      for(let p=0;p<4;p++) if(players[p].type==='ai'&&au.bids[p]===null) processAction(p,{t:'action',action:'hiddenBid',data:{bid:aiBid(p,au)}});
       return;
     }
-
-    // Fixed: set price
     if(au.type===1&&au.subPhase==='fixSetPrice'&&players[au.auctioneer].type==='ai'){
-      const price=Math.floor(aiEstVal(au.artist)*0.75);
-      processAction(au.auctioneer,{t:'action',action:'fixedSetPrice',data:{price:clamp(price,1,G.cash[au.auctioneer])}});
-      return;
+      const price=clamp(Math.floor(aiEstVal(au.artist)*.75),1,G.cash[au.auctioneer]);
+      processAction(au.auctioneer,{t:'action',action:'fixedSetPrice',data:{price}});return;
     }
-    // Fixed: decide
     if(au.type===1&&au.subPhase==='fixSelling'&&players[au.currentBidder].type==='ai'){
-      const val=aiEstVal(au.artist);
-      const buy=au.price<val&&G.cash[au.currentBidder]>=au.price&&rnd(0,10)>=4;
-      processAction(au.currentBidder,{t:'action',action:'fixedDecide',data:{buy}});
-      return;
+      const val=aiEstVal(au.artist);const buy=au.price<val&&G.cash[au.currentBidder]>=au.price&&rnd(0,10)>=4;
+      processAction(au.currentBidder,{t:'action',action:'fixedDecide',data:{buy}});return;
     }
-
-    // Once Around
     if(au.type===2&&players[au.currentBidder].type==='ai'){
-      const val=aiEstVal(au.artist);
-      const maxBid=Math.floor(val*rnd(55,80)/100);
-      const minBid=au.highBid+1;
-      if(maxBid>=minBid&&G.cash[au.currentBidder]>=minBid){
-        processAction(au.currentBidder,{t:'action',action:'onceAroundBid',data:{bid:clamp(minBid,minBid,Math.min(maxBid,G.cash[au.currentBidder]))}});
-      } else {
-        processAction(au.currentBidder,{t:'action',action:'onceAroundBid',data:{bid:0}});
-      }
+      const val=aiEstVal(au.artist);const maxBid=Math.floor(val*rnd(55,80)/100);const minBid=au.highBid+1;
+      if(maxBid>=minBid&&G.cash[au.currentBidder]>=minBid) processAction(au.currentBidder,{t:'action',action:'onceAroundBid',data:{bid:clamp(minBid,minBid,Math.min(maxBid,G.cash[au.currentBidder]))}});
+      else processAction(au.currentBidder,{t:'action',action:'onceAroundBid',data:{bid:0}});
       return;
     }
-
-    // Open — all AIs decide sequentially
     if(au.type===3){
-      let acted=false;
       for(let p=0;p<4;p++){
         if(players[p].type==='ai'&&au.highBidder!==p){
-          const val=aiEstVal(au.artist)*(au.cards.length===2?1.7:1);
-          const maxBid=Math.floor(val*rnd(55,80)/100);
+          const val=aiEstVal(au.artist)*(au.cards.length===2?1.7:1);const maxBid=Math.floor(val*rnd(55,80)/100);
           if(au.highBid+1<=maxBid&&G.cash[p]>=au.highBid+1){
             processAction(p,{t:'action',action:'openBid',data:{bid:au.highBid+rnd(1,7)}});
-            acted=true;
-            setTimeout(runAI,600); // AI may keep raising
-            return;
-          } else {
-            processAction(p,{t:'action',action:'openPass',data:{}});
-          }
+            setTimeout(runAI,600);return;
+          } else processAction(p,{t:'action',action:'openPass',data:{}});
         }
       }
       return;
     }
   }
 }
-
 function aiPickCard(p){
-  const hand=G.hands[p];
-  if(!hand.length) return null;
+  const hand=G.hands[p];if(!hand.length) return null;
   let best=null,score=-Infinity;
   for(const c of hand){
-    let s=0;
-    const rc=G.roundCounts[c.artist];
-    const acc=G.accumulated[c.artist];
-    const ownedBought=G.purchased[p].filter(x=>x.artist===c.artist).length;
-    const handCount=hand.filter(x=>x.artist===c.artist).length;
-    s+=handCount*3;                               // prefer artists with more cards in hand
-    s+=acc*0.4;                                   // prefer already-valuable artists
-    if(rc>=2) s+=8; if(rc>=3) s+=12;             // prefer artists already in the race
-    if(rc===4&&ownedBought===0) s-=20;            // avoid triggering round end if we own nothing
-    if(rc===4&&ownedBought>0) s+=25;             // great to trigger if we own some
-    if(c.type===4) s+=(G.round>=2?12:-10);       // doubles: good in late rounds
-    s+=rnd(0,5);                                  // noise
-    if(s>score){score=s;best=c;}
+    let s=0;const rc=G.roundCounts[c.artist];const acc=G.accumulated[c.artist];
+    const ob=G.purchased[p].filter(x=>x.artist===c.artist).length;
+    const hc=hand.filter(x=>x.artist===c.artist).length;
+    s+=hc*3;s+=acc*.4;if(rc>=2)s+=8;if(rc>=3)s+=12;
+    if(rc===4&&ob===0)s-=20;if(rc===4&&ob>0)s+=25;
+    if(c.type===4)s+=(G.round>=2?12:-10);
+    s+=rnd(0,5);if(s>score){score=s;best=c;}
   }
   return best;
 }
-
 function aiEstVal(artist){
-  const rc=G.roundCounts[artist];
-  const acc=G.accumulated[artist];
-  const sorted=[...G.roundCounts].sort((a,b)=>b-a);
-  const pos=sorted.indexOf(rc);
-  const estRound=pos<3&&rc>0?RVALS[pos]:4;
-  return acc+estRound;
+  const rc=G.roundCounts[artist];const acc=G.accumulated[artist];
+  const sorted=[...G.roundCounts].sort((a,b)=>b-a);const pos=sorted.indexOf(rc);
+  return acc+(pos<3&&rc>0?RVALS[pos]:4);
 }
-
 function aiBid(p,au){
   const val=aiEstVal(au.artist)*(au.cards.length===2?1.7:1);
   const owned=G.purchased[p].filter(c=>c.artist===au.artist).length;
-  const interest=1+owned*0.15;
-  const w=rnd(50,75)/100;
-  return Math.max(0,Math.min(Math.floor(val*w*interest),G.cash[p]));
+  return Math.max(0,Math.min(Math.floor(val*rnd(50,75)/100*(1+owned*.15)),G.cash[p]));
 }
 
-/* ─── RENDER ─────────────────────────────────────────────── */
+/* ═══════════════════════════════════════════════════════════
+   RENDER
+═══════════════════════════════════════════════════════════ */
+// Player positions relative to myIndex:
+//  top  = opposite = (myIndex+2)%4
+//  left = (myIndex+3)%4
+//  right= (myIndex+1)%4
+//  bot  = myIndex
+
 function renderGame(){
   if(!G) return;
-  renderTopBar();
-  renderArtistPanel();
-  renderOpponents();
-  renderAuction();
-  renderPurchased();
-  renderHand();
+  const pos={top:(myIndex+2)%4,left:(myIndex+3)%4,right:(myIndex+1)%4,bot:myIndex};
+  renderTopPlayer(pos.top);
+  renderSidePlayer('leftPlayer',pos.left);
+  renderSidePlayer('rightPlayer',pos.right);
+  renderBottomPlayer(pos.bot);
+  renderArtistHeaders();
+  renderCountBars();
+  renderValueGrid();
+  renderAuctionPanel();
+  renderHandCards();
 }
 
-function renderTopBar(){
-  document.getElementById('topRound').textContent='Round '+(G.round+1)+' / 4';
-  const tp=document.getElementById('topPlayers');
-  tp.innerHTML='';
-  for(let p=0;p<4;p++){
+function playerBoxesHTML(p){
+  // Hand count box (white)
+  const hc=G.hands[p].length;
+  let html=`<div class="hand-box">${hc}</div>`;
+  // Painting boxes (coloured, per artist)
+  const byArtist=[0,0,0,0,0];
+  G.purchased[p].forEach(c=>byArtist[c.artist]++);
+  byArtist.forEach((cnt,a)=>{if(cnt>0) html+=`<div class="paint-box a${a}">${cnt}</div>`;});
+  return html;
+}
+
+function renderTopPlayer(p){
+  const el=document.getElementById('topPlayer');
+  const isActive=G.turn===p;
+  const name=esc(G.players[p].name);
+  const nameClass='pname-opp'+(isActive?' pname-active':'');
+  el.innerHTML=`<div class="top-inner"><span class="${nameClass}">${name}</span></div>
+    <div class="top-inner" style="gap:5px">${playerBoxesHTML(p)}</div>`;
+}
+
+function renderSidePlayer(elId,p){
+  const el=document.getElementById(elId);
+  const isActive=G.turn===p;
+  const name=esc(G.players[p].name);
+  const nameClass='pname-opp'+(isActive?' pname-active':'');
+  // Side players show name vertically + boxes stacked
+  const byArtist=[0,0,0,0,0];
+  G.purchased[p].forEach(c=>byArtist[c.artist]++);
+  let boxes=`<div class="hand-box">${G.hands[p].length}</div>`;
+  byArtist.forEach((cnt,a)=>{if(cnt>0) boxes+=`<div class="paint-box a${a}">${cnt}</div>`;});
+  el.innerHTML=`<span class="${nameClass}" style="writing-mode:vertical-lr;text-orientation:mixed;text-align:center;max-height:120px;overflow:hidden">${name}</span>${boxes}`;
+}
+
+function renderBottomPlayer(p){
+  const el=document.getElementById('bottomPlayer');
+  const isActive=G.turn===p;
+  const nameClass='pname-you'+(isActive?' pname-active':'');
+  // Show own money
+  const byArtist=[0,0,0,0,0];
+  G.purchased[p].forEach(c=>byArtist[c.artist]++);
+  let boxes='';
+  byArtist.forEach((cnt,a)=>{if(cnt>0) boxes+=`<div class="paint-box a${a}">${cnt}</div>`;});
+  el.innerHTML=`<span class="${nameClass}">${esc(G.players[p].name)} ($${G.cash[p]})</span>
+    <div class="bot-inner" style="gap:5px">${boxes||'<span style="font-size:11px;color:#c8e8c8">No paintings yet</span>'}</div>`;
+}
+
+function renderArtistHeaders(){
+  const el=document.getElementById('artistNames');el.innerHTML='';
+  ARTISTS.forEach((name,a)=>{
     const d=document.createElement('div');
-    d.className='top-player'+(p===G.turn?' active-turn':'')+(p===myIndex?' is-you':'');
-    d.innerHTML=`<div class="tp-name">${esc(G.players[p].name)}</div>
-      <div class="tp-cash">$${G.cash[p]}</div>
-      <div class="tp-tag">${p===myIndex?'YOU':G.players[p].type.toUpperCase()}</div>`;
-    tp.appendChild(d);
-  }
+    d.className='a-name-cell';
+    d.style.borderTop='4px solid '+ACOLORS[a];
+    d.textContent=name;
+    el.appendChild(d);
+  });
 }
 
-function renderArtistPanel(){
-  const c=document.getElementById('artistRows');
-  c.innerHTML='';
+function renderCountBars(){
+  const el=document.getElementById('countBars');el.innerHTML='';
   for(let a=0;a<5;a++){
-    const div=document.createElement('div');
-    div.className='artist-row';
-    let bar='<div class="artist-bar">';
-    for(let i=0;i<5;i++){
-      const f=i<G.roundCounts[a];
-      bar+=`<div class="abox a${a}" style="${f?'':'background:#121228;color:#333'}">${f?i+1:''}</div>`;
+    const wrap=document.createElement('div');wrap.className='cbar-wrap';
+    const fill=document.createElement('div');fill.className='cbar-fill';
+    fill.style.background=ACOLORS[a];
+    fill.style.width=Math.min(G.roundCounts[a]/ENDTRIG*100,100)+'%';
+    wrap.appendChild(fill);el.appendChild(wrap);
+  }
+}
+
+function renderValueGrid(){
+  const el=document.getElementById('valueGrid');el.innerHTML='';
+  for(let r=0;r<4;r++){
+    for(let a=0;a<5;a++){
+      const cell=document.createElement('div');cell.className='vg-cell';
+      const hist=G.roundHistory[r];
+      if(hist&&hist.gainMap&&hist.gainMap[a]>0){
+        cell.textContent=hist.gainMap[a];
+        cell.style.color=ACOLORS[a];
+      }
+      el.appendChild(cell);
     }
-    bar+='</div>';
-    const accStr=G.accumulated[a]>0?` · $${G.accumulated[a]} accum.`:'';
-    div.innerHTML=`<div class="artist-name a${a}t">${ARTISTS[a]}</div>${bar}
-      <div class="artist-val">${G.roundCounts[a]}/5 out${accStr}</div>`;
-    c.appendChild(div);
   }
 }
 
-function renderOpponents(){
-  const row=document.getElementById('opponentsRow');
-  row.innerHTML='';
-  for(let p=0;p<4;p++){
-    if(p===myIndex) continue;
-    const d=document.createElement('div');
-    d.className='opp-card';
-    let pnts=G.purchased[p].map(c=>`<div class="mini-p a${c.artist}" title="${ARTISTS[c.artist]}">${SYMBOLS[c.type]}</div>`).join('');
-    if(!pnts) pnts='<span style="color:#333;font-size:10px">—</span>';
-    d.innerHTML=`<div class="opp-name">${esc(G.players[p].name)}${p===G.turn?' ✦':''}</div>
-      <div class="opp-meta">$${G.cash[p]} · ${G.hands[p].length} cards</div>
-      <div class="opp-paintings">${pnts}</div>`;
-    row.appendChild(d);
-  }
-}
-
-function renderPurchased(){
-  const c=document.getElementById('ppContent');
-  c.innerHTML='';
-  for(let p=0;p<4;p++){
-    const d=document.createElement('div');
-    d.className='pp-player';
-    const pnts=G.purchased[p].map(c=>`<div class="mini-p a${c.artist}" title="${ARTISTS[c.artist]} ${TYPES[c.type]}">${SYMBOLS[c.type]}</div>`).join('')||'<span style="color:#333">—</span>';
-    d.innerHTML=`<div class="pp-pname">${esc(G.players[p].name)}${p===myIndex?' ★':''}</div>
-      <div class="pp-paintings">${pnts}</div>`;
-    c.appendChild(d);
-  }
-}
-
-function renderHand(){
-  const area=document.getElementById('handArea');
+function renderHandCards(){
+  const area=document.getElementById('handArea');area.innerHTML='';
   const lbl=document.getElementById('handLbl');
-  // clear everything except lbl
-  while(area.lastChild&&area.lastChild!==lbl) area.removeChild(area.lastChild);
-
   const hand=G.hands[myIndex];
   const isMyTurn=G.turn===myIndex&&G.phase==='TURN';
   const au=G.auction;
   const dblChoose=au&&au.subPhase==='dblChoose'&&au.dblWaiting===myIndex;
-
-  if(isMyTurn) lbl.textContent='Your turn — click a card to auction:';
-  else if(dblChoose) lbl.textContent='Double! Click a matching '+ARTISTS[au.artist]+' to pair (or pass in auction panel):';
+  if(isMyTurn) lbl.textContent='Your turn — tap a card to auction:';
+  else if(dblChoose) lbl.textContent='Double! Tap a matching '+ARTISTS[au.artist]+' card:';
   else lbl.textContent='Your hand ('+hand.length+' cards):';
-
   hand.forEach(card=>{
-    const div=document.createElement('div');
-    div.className='hcard a'+card.artist;
+    const div=document.createElement('div');div.className='hcard a'+card.artist;
     const active=isMyTurn||(dblChoose&&card.artist===au.artist&&card.type!==4);
     if(!active) div.classList.add('dim');
-    div.innerHTML=`<span class="csym">${SYMBOLS[card.type]}</span>
-      <span class="cart">${ARTISTS[card.artist].split(' ')[0]}</span>
-      <span class="ctype">${TYPES[card.type]}</span>`;
+    else if(dblChoose) div.classList.add('glow');
+    div.textContent=SYMBOLS[card.type];
     div.title=ARTISTS[card.artist]+' — '+TYPES[card.type];
     if(active){
       div.addEventListener('click',()=>{
@@ -1027,115 +924,92 @@ function renderHand(){
   });
 }
 
-function renderAuction(){
-  const area=document.getElementById('auctionArea');
+function renderAuctionPanel(){
+  const el=document.getElementById('auctionPanel');
   const au=G.auction;
-  if(!au){area.style.display='none';return;}
-  area.style.display='block';
+  if(!au){el.innerHTML='<div class="ap-msg">No auction in progress.</div>';return;}
   const a=au.artist;
   const isMe=au.auctioneer===myIndex;
   const tLabel=au.type===4?'Double':TYPES[au.type];
+  let h=`<div class="ap-field"><span class="ap-fl">Artist</span><span class="ap-fv" style="color:${ACOLORS[a]}">${ARTISTS[a]}${au.cards.length===2?' ×2':''}</span></div>
+    <div class="ap-field"><span class="ap-fl">Auction Type</span><span class="ap-fv">${tLabel} ${SYMBOLS[au.type===4?4:au.type]}</span></div>
+    <div class="ap-field"><span class="ap-fl">Seller</span><span class="ap-fv">${esc(G.players[au.auctioneer].name)}</span></div>`;
 
-  let h=`<div class="auction-hdr">Current Auction</div>
-    <div class="auction-painting-row">
-      <div class="big-card a${a}">
-        <span class="bsym">${au.cards.map(c=>SYMBOLS[c.type]).join(' ')}</span>
-        <span class="bart">${ARTISTS[a]}</span>
-      </div>
-      <div class="auction-info">
-        <h4>${tLabel} Auction${au.cards.length===2?' 🃏 Double':''}</h4>
-        <p>Auctioneer: <strong>${esc(G.players[au.auctioneer].name)}</strong><br>
-        Accumulated value: <strong>$${G.accumulated[a]}</strong><br>
-        Cards on table: ${au.cards.length}</p>
-      </div>
-    </div>`;
-
-  // Phase controls
   if(au.subPhase==='dblChoose'){
-    const wName=esc(G.players[au.dblWaiting].name);
-    h+=`<div class="status-msg">Waiting for <strong>${wName}</strong> to decide whether to pair a second ${ARTISTS[a]}…</div>`;
+    const wName=G.players[au.dblWaiting].name;
+    h+=`<div class="ap-field"><span class="ap-fl">Status</span><span class="ap-fv">Double: waiting for ${esc(wName)}</span></div>`;
     if(au.dblWaiting===myIndex){
       const matching=G.hands[myIndex].filter(c=>c.artist===a&&c.type!==4);
-      h+=`<div class="auction-controls">
-        <div class="status-msg">You played a Double. Play a second ${ARTISTS[a]} to run a double auction, or pass.</div>`;
-      if(matching.length){
-        h+=`<div class="match-cards">`+matching.map(c=>`<button class="btn-buy" onclick="toHost({t:'action',action:'doubleSecond',data:{cardId:${c.id}}})">${TYPES[c.type]} ${SYMBOLS[c.type]}</button>`).join('')+'</div>';
-      } else {
-        h+=`<div class="status-msg" style="color:#e94560">No matching ${ARTISTS[a]} cards in hand.</div>`;
-      }
-      h+=`<button class="btn-pass" onclick="toHost({t:'action',action:'doubleSecond',data:{cardId:null}})">Pass — let next player decide</button></div>`;
-    }
+      h+=`<div class="ap-msg">Pair a second ${ARTISTS[a]}?</div><div class="ap-match">`;
+      matching.forEach(c=>{h+=`<button class="ap-match-btn" onclick="toHost({t:'action',action:'doubleSecond',data:{cardId:${c.id}}})">${SYMBOLS[c.type]} ${TYPES[c.type]}</button>`;});
+      h+=`</div><button class="ap-btn no" onclick="toHost({t:'action',action:'doubleSecond',data:{cardId:null}})">Pass</button>`;
+    } else h+=`<div class="ap-msg">Waiting…</div>`;
 
   } else if(au.type===0&&au.subPhase==='hidCollect'){
-    const myBid=au.bids?au.bids[myIndex]:null;
-    const pending=au.bids?au.bids.filter(b=>b===null).length:4;
-    h+=`<div class="status-msg">Hidden bids — all players bid secretly then reveal. ${pending} player(s) still to bid.</div>`;
+    const myBid=au.bids?au.bids[myIndex]:null;const pending=au.bids?au.bids.filter(b=>b===null).length:4;
+    h+=`<div class="ap-field"><span class="ap-fl">High</span><span class="ap-fv">Hidden (${pending} pending)</span></div>`;
     if(myBid===null){
-      h+=`<div class="auction-controls"><div class="bid-row">
-        <input type="number" id="bidInp" min="0" max="${G.cash[myIndex]}" placeholder="Bid (max $${G.cash[myIndex]})">
-        <button class="btn-blue" onclick="submitBid('hiddenBid')">Seal Bid ★</button>
-      </div></div>`;
+      h+=`<input class="ap-input" type="number" id="bidInp" min="0" max="${G.cash[myIndex]}" placeholder="Your bid">
+        <div class="ap-row"><button class="ap-btn go" onclick="submitBid('hiddenBid')">Bid</button></div>`;
     } else {
-      h+=`<div class="waiting-msg">Your bid $${myBid} sealed. Waiting for ${pending} others…</div>`;
+      h+=`<div class="ap-msg">Your bid $${myBid} sealed. Waiting for ${pending} others…</div>`;
     }
     if(au.bids){
-      h+=`<div class="bids-row">`+au.bids.map((b,i)=>`<span class="bid-chip" style="color:${b!==null?'#6e6':'#556'}">${esc(G.players[i].name)}: ${b!==null?'✓':'…'}</span>`).join('')+'</div>';
+      h+=`<div class="ap-bids">`+au.bids.map((b,i)=>`${esc(G.players[i].name)}: ${b!==null?'✓':' …'}`).join('<br>')+'</div>';
     }
 
   } else if(au.type===1&&au.subPhase==='fixSetPrice'){
-    h+=`<div class="status-msg">${esc(G.players[au.auctioneer].name)} is choosing a fixed price…</div>`;
+    h+=`<div class="ap-field"><span class="ap-fl">High</span><span class="ap-fv">—</span></div>`;
     if(isMe){
-      h+=`<div class="auction-controls"><div class="bid-row">
-        <input type="number" id="bidInp" min="0" max="${G.cash[myIndex]}" placeholder="Set price">
-        <button class="btn-blue" onclick="submitBid('fixedSetPrice')">Set Price $</button>
-      </div></div>`;
-    }
+      h+=`<div class="ap-msg">Set a price for all players:</div>
+        <input class="ap-input" type="number" id="bidInp" min="0" max="${G.cash[myIndex]}" placeholder="Set price">
+        <div class="ap-row"><button class="ap-btn go" onclick="submitBid('fixedSetPrice')">Set Price</button></div>`;
+    } else h+=`<div class="ap-msg">Waiting for ${esc(G.players[au.auctioneer].name)} to set price…</div>`;
 
   } else if(au.type===1&&au.subPhase==='fixSelling'){
-    const current=au.currentBidder;
-    h+=`<div class="status-msg">Fixed price: <strong>$${au.price}</strong> — offer goes clockwise. If all pass, auctioneer must buy.</div>`;
-    if(current===myIndex&&!isMe){
-      h+=`<div class="auction-controls"><div class="bid-row">
-        <button class="btn-buy" onclick="toHost({t:'action',action:'fixedDecide',data:{buy:true}})">Buy for $${au.price}</button>
-        <button class="btn-pass" onclick="toHost({t:'action',action:'fixedDecide',data:{buy:false}})">Pass</button>
-      </div><div class="status-msg">Cash: $${G.cash[myIndex]}</div></div>`;
-    } else if(current===au.auctioneer&&isMe){
-      h+=`<div class="auction-controls"><div class="status-msg" style="color:#e94560">Everyone passed — you must buy at $${au.price} (paid to bank).</div>
-        <button class="btn-red" onclick="toHost({t:'action',action:'fixedDecide',data:{buy:true}})">Confirm Purchase</button></div>`;
-    } else {
-      h+=`<div class="waiting-msg">Waiting for ${esc(G.players[current].name)}…</div>`;
-    }
+    const cur=au.currentBidder;
+    h+=`<div class="ap-field"><span class="ap-fl">High</span><span class="ap-fv">$${au.price} fixed</span></div>`;
+    if(cur===myIndex&&!isMe){
+      h+=`<div class="ap-msg">Buy for $${au.price}?</div>
+        <div class="ap-row"><button class="ap-btn go" onclick="toHost({t:'action',action:'fixedDecide',data:{buy:true}})">Buy</button>
+        <button class="ap-btn no" onclick="toHost({t:'action',action:'fixedDecide',data:{buy:false}})">Pass</button></div>`;
+    } else if(cur===au.auctioneer&&isMe){
+      h+=`<div class="ap-msg" style="color:#a00">All passed — you must buy for $${au.price}!</div>
+        <div class="ap-row"><button class="ap-btn no" onclick="toHost({t:'action',action:'fixedDecide',data:{buy:true}})">Confirm</button></div>`;
+    } else h+=`<div class="ap-msg">Waiting for ${esc(G.players[cur].name)}…</div>`;
 
   } else if(au.type===2){
-    h+=`<div class="status-msg">Once Around — each player bids once. Current high: <strong>$${au.highBid}</strong>${au.highBidder>=0?' ('+esc(G.players[au.highBidder].name)+')':''}. Auctioneer bids last.</div>`;
+    h+=`<div class="ap-field"><span class="ap-fl">High</span><span class="ap-fv">${au.highBid>0?'$'+au.highBid+' ('+esc(G.players[au.highBidder].name)+')':'—'}</span></div>`;
     if(au.currentBidder===myIndex){
-      h+=`<div class="auction-controls"><div class="bid-row">
-        <input type="number" id="bidInp" min="${au.highBid+1}" max="${G.cash[myIndex]}" placeholder=">$${au.highBid} or 0 to pass">
-        <button class="btn-blue" onclick="submitBid('onceAroundBid')">Bid</button>
-        <button class="btn-pass" onclick="toHost({t:'action',action:'onceAroundBid',data:{bid:0}})">Pass</button>
-      </div><div class="status-msg">Cash: $${G.cash[myIndex]}</div></div>`;
-    } else {
-      h+=`<div class="waiting-msg">Waiting for ${esc(G.players[au.currentBidder].name)} to bid…</div>`;
-    }
+      h+=`<div class="ap-msg">Bid once or pass (goes to auctioneer last):</div>
+        <input class="ap-input" type="number" id="bidInp" min="${au.highBid+1}" max="${G.cash[myIndex]}" placeholder="Bid or 0">
+        <div class="ap-row"><button class="ap-btn go" onclick="submitBid('onceAroundBid')">Bid</button>
+        <button class="ap-btn no" onclick="toHost({t:'action',action:'onceAroundBid',data:{bid:0}})">Pass</button></div>`;
+    } else h+=`<div class="ap-msg">Waiting for ${esc(G.players[au.currentBidder].name)}…</div>`;
 
   } else if(au.type===3){
     const winning=au.highBidder===myIndex;
-    h+=`<div class="status-msg">Open Auction — anyone can bid! High: <strong>$${au.highBid}</strong>${au.highBidder>=0?' ('+esc(G.players[au.highBidder].name)+')':' — no bids yet'}.</div>`;
+    h+=`<div class="ap-field"><span class="ap-fl">High</span><span class="ap-fv">${au.highBid>0?'$'+au.highBid+' ('+esc(G.players[au.highBidder].name)+')':'No bids yet'}</span></div>`;
     if(!winning){
-      h+=`<div class="auction-controls"><div class="bid-row">
-        <input type="number" id="bidInp" min="${au.highBid+1}" max="${G.cash[myIndex]}" placeholder="Raise to >$${au.highBid}">
-        <button class="btn-blue" onclick="submitBid('openBid')">Raise Bid +</button>
-        <button class="btn-pass" onclick="toHost({t:'action',action:'openPass',data:{}})">Pass</button>
-      </div><div class="status-msg">Cash: $${G.cash[myIndex]}</div></div>`;
+      h+=`<input class="ap-input" type="number" id="bidInp" min="${au.highBid+1}" max="${G.cash[myIndex]}" placeholder="Raise to >$${au.highBid}">
+        <div class="ap-row"><button class="ap-btn go" onclick="submitBid('openBid')">Bid</button>
+        <button class="ap-btn no" onclick="toHost({t:'action',action:'openPass',data:{}})">Pass</button></div>`;
     } else {
-      h+=`<div class="waiting-msg">You are high bidder at $${au.highBid}! Others may raise.</div>
-        <div class="auction-controls">
-          <button class="btn-buy" onclick="toHost({t:'action',action:'openPass',data:{}})">Claim (I'm passing, trigger end)</button>
-        </div>`;
+      h+=`<div class="ap-msg">You lead at $${au.highBid}. Others may raise.</div>
+        <div class="ap-row"><button class="ap-btn" onclick="toHost({t:'action',action:'openPass',data:{}})">Claim / Pass</button></div>`;
     }
   }
 
-  area.innerHTML=h;
+  h+=`<button class="ap-toggle" onclick="toggleLog()">${G.logHidden?'Show History':'Hide History'}</button>`;
+  el.innerHTML=h;
+}
+
+function toggleLog(){
+  if(!G) return;
+  G.logHidden=!G.logHidden;
+  const la=document.getElementById('logArea');
+  if(la) la.style.display=G.logHidden?'none':'block';
+  renderAuctionPanel();
 }
 
 function submitBid(action){
@@ -1147,29 +1021,26 @@ function submitBid(action){
   else if(action==='openBid') toHost({t:'action',action,data:{bid:val}});
 }
 
-function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
-
-/* ─── LOBBY UI ──────────────────────────────────────────── */
+/* ═══════════════════════════════════════════════════════════
+   LOBBY
+═══════════════════════════════════════════════════════════ */
 function renderLobbySlots(){
-  const c=document.getElementById('lobbySlots');
-  c.innerHTML='';
+  const c=document.getElementById('lobbySlots');c.innerHTML='';
   if(!G) return;
   for(let i=0;i<4;i++){
-    const p=G.players[i];
-    const you=i===myIndex;
+    const p=G.players[i];const you=i===myIndex;
+    const el=document.createElement('div');el.className='slot';
     const dc=you?'you':p.type==='human'?'human':'ai';
-    const el=document.createElement('div');
-    el.className='slot';
-    el.innerHTML=`<div class="slot-dot ${dc}"></div>
-      <span><strong>${esc(p.name)}</strong>${you?' (you)':''} — ${p.type==='ai'?'AI Computer':'Human Player'}</span>`;
+    el.innerHTML=`<div class="slot-dot ${dc}"></div><span><strong>${esc(p.name)}</strong>${you?' (you)':''} — ${p.type==='ai'?'AI Computer':'Human'}</span>`;
     c.appendChild(el);
   }
 }
 
-/* ─── EVENTS ────────────────────────────────────────────── */
+/* ═══════════════════════════════════════════════════════════
+   EVENTS
+═══════════════════════════════════════════════════════════ */
 document.getElementById('btnCreate').addEventListener('click',()=>{
-  const name=document.getElementById('playerName').value.trim()||'Host';
-  createRoom(name);
+  const name=document.getElementById('playerName').value.trim()||'Host';createRoom(name);
 });
 document.getElementById('btnJoin').addEventListener('click',()=>{
   const code=document.getElementById('roomInput').value.trim().toUpperCase();
@@ -1179,23 +1050,20 @@ document.getElementById('btnJoin').addEventListener('click',()=>{
 });
 document.getElementById('btnStart').addEventListener('click',()=>{
   if(!isHost) return;
-  showScreen('sGame');
-  toAll({t:'toast',msg:'Game starting!'});
-  startGame();
+  showScreen('sGame');toAll({t:'toast',msg:'Game starting!'});startGame();
 });
 document.getElementById('btnNextRound').addEventListener('click',()=>{
   if(!isHost) return;
-  beginNextRound();
-  showScreen('sGame');
+  showScreen('sGame');beginNextRound();
 });
 document.getElementById('btnPlayAgain').addEventListener('click',()=>location.reload());
 document.getElementById('roomInput').addEventListener('input',function(){this.value=this.value.toUpperCase();});
 document.getElementById('playerName').addEventListener('keydown',e=>{if(e.key==='Enter')document.getElementById('btnCreate').click();});
 document.getElementById('roomInput').addEventListener('keydown',e=>{if(e.key==='Enter')document.getElementById('btnJoin').click();});
 
-// Expose globals for inline onclick handlers
 window.toHost=toHost;
 window.submitBid=submitBid;
+window.toggleLog=toggleLog;
 </script>
 </body>
 </html>
