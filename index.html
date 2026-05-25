@@ -35,6 +35,16 @@ button:disabled{opacity:.35;cursor:not-allowed}
 .slot-dot.human{background:#4a6af7}.slot-dot.ai{background:#e94560}.slot-dot.you{background:#2ecc71}
 .room-code{font-family:monospace;font-size:24px;letter-spacing:8px;color:#4a6af7;font-weight:700;text-align:center;background:#0a0a18;padding:12px;border-radius:8px}
 .info-note{font-size:11px;color:#444;text-align:center}
+.diff-row{display:flex;gap:8px}
+.diff-btn{flex:1;padding:8px 4px;border-radius:6px;font-size:13px;font-weight:600;background:#1e1e3a;color:#888;border:2px solid #2a2a4a;transition:all .15s}
+.diff-btn:hover{border-color:#4a6af7;color:#e0e0f0}
+.diff-btn.active[data-d="easy"]{background:#1a3a1a;border-color:#2ecc71;color:#2ecc71}
+.diff-btn.active[data-d="medium"]{background:#3a2a0a;border-color:#f0a030;color:#f0a030}
+.diff-btn.active[data-d="hard"]{background:#3a0a0a;border-color:#e94560;color:#e94560}
+.diff-badge{font-size:10px;font-weight:700;padding:1px 5px;border-radius:3px;margin-left:4px;vertical-align:middle}
+.diff-badge.easy{background:#1a3a1a;color:#2ecc71}
+.diff-badge.medium{background:#3a2a0a;color:#f0a030}
+.diff-badge.hard{background:#3a0a0a;color:#e94560}
 
 /* ── GAME SCREEN ──────────────────────────────────── */
 #sGame{flex-direction:column;background:#0f0f1e;min-height:100vh;padding:5px;gap:4px}
@@ -207,6 +217,12 @@ button:disabled{opacity:.35;cursor:not-allowed}
   <div class="card-box" id="setupBox">
     <h3>Your Name</h3>
     <input id="playerName" value="You" maxlength="16">
+    <h3 style="margin-top:4px">AI Difficulty</h3>
+    <div class="diff-row">
+      <button class="diff-btn active" data-d="easy">😴 Easy</button>
+      <button class="diff-btn" data-d="medium">🎯 Medium</button>
+      <button class="diff-btn" data-d="hard">🔥 Hard</button>
+    </div>
     <button class="btn-primary" id="btnSolo" style="background:#2ecc71;color:#000">▶ Play vs AI</button>
     <div class="divider">online multiplayer</div>
     <button class="btn-primary" id="btnCreate" style="background:#4a6af7">🎨 Create Room (Host)</button>
@@ -344,7 +360,7 @@ function buildDeck(){
 ═══════════════════════════════════════════════════ */
 let G = null;
 
-function freshState(players){
+function freshState(players,difficulty){
   return{
     phase:'TURN',round:0,turn:0,startPlayer:0,
     deck:buildDeck(),
@@ -355,6 +371,7 @@ function freshState(players){
     cash:[STARTCASH,STARTCASH,STARTCASH,STARTCASH],
     cashBefore:[STARTCASH,STARTCASH,STARTCASH,STARTCASH],
     players,auction:null,roundHistory:[],
+    aiDifficulty:difficulty||'medium',
   };
 }
 function dealCards(g,count){
@@ -394,17 +411,24 @@ function addLog(msg,hi=false){
 }
 function broadcastLog(msg,hi=false){addLog(msg,hi);toAll({t:'log',msg,hi});}
 
+function getSelectedDiff(){
+  const active=document.querySelector('.diff-btn.active');
+  return active?active.dataset.d:'medium';
+}
 function playSolo(name){
   if(!name){toast('Enter your name first');return;}
   isHost=true;myIndex=0;
+  const diff=getSelectedDiff();
+  const label={easy:'😴 Easy',medium:'🎯 Medium',hard:'🔥 Hard'}[diff];
   const players=[
     {name,type:'human'},
     {name:'AI Alpha',type:'ai'},
     {name:'AI Beta',type:'ai'},
     {name:'AI Gamma',type:'ai'},
   ];
-  G=freshState(players);
+  G=freshState(players,diff);
   showScreen('sGame');
+  toast('Playing vs '+label+' AI');
   startGame();
 }
 
@@ -443,7 +467,7 @@ function createRoom(name){
     document.getElementById('setupBox').style.display='none';
     document.getElementById('roomBox').style.cssText='display:flex;flex-direction:column';
     const players=[{name,type:'human'},{name:'AI Alpha',type:'ai'},{name:'AI Beta',type:'ai'},{name:'AI Gamma',type:'ai'}];
-    G=freshState(players);renderLobbySlots();
+    G=freshState(players,getSelectedDiff());renderLobbySlots();
     document.getElementById('btnStart').disabled=false;
     toast('Room created! Code: '+code);
   });
@@ -817,52 +841,109 @@ function scheduleAI(){clearTimeout(aiTimer);aiTimer=setTimeout(runAI,900);}
 function runAI(){
   if(!isHost||!G) return;
   const{phase,turn,players,auction:au}=G;
+  const d=aiDiff();
+
   if(phase==='TURN'&&players[turn].type==='ai'){
     const card=aiPickCard(turn);if(!card) return;
     const idx=G.hands[turn].findIndex(c=>c.id===card.id);G.hands[turn].splice(idx,1);
     beginAuction(turn,card);return;
   }
+
   if(phase==='AUCTION'&&au){
+
+    /* ── Double: pair a second card? ── */
     if(au.subPhase==='dblChoose'&&players[au.dblWaiting].type==='ai'){
       const w=au.dblWaiting;
       const matching=G.hands[w].filter(c=>c.artist===au.artist&&c.type!==4);
-      const should=matching.length>0&&G.accumulated[au.artist]>=15&&G.round>=1&&rnd(0,2)>0;
+      let should=false;
+      if(d==='easy'){
+        // Pairs randomly ~25% of the time
+        should=matching.length>0&&rnd(0,3)===0;
+      }else if(d==='medium'){
+        should=matching.length>0&&G.accumulated[au.artist]>=15&&G.round>=1&&rnd(0,2)>0;
+      }else{
+        // Hard: pair if artist is valuable AND I already own paintings of them
+        const owned=G.purchased[w].filter(c=>c.artist===au.artist).length;
+        const estV=aiEstVal(au.artist);
+        should=matching.length>0&&estV>=18&&(G.round>=1||owned>0)&&rnd(0,3)>0;
+      }
       if(should){const c2=matching[rnd(0,matching.length-1)];processAction(w,{t:'action',action:'doubleSecond',data:{cardId:c2.id}});}
       else processAction(w,{t:'action',action:'doubleSecond',data:{cardId:null}});
       return;
     }
+
+    /* ── Hidden auction: submit sealed bid ── */
     if(au.type===0&&au.subPhase==='hidCollect'){
-      for(let p=0;p<4;p++) if(players[p].type==='ai'&&au.bids[p]===null) processAction(p,{t:'action',action:'hiddenBid',data:{bid:aiBid(p,au)}});
+      for(let p=0;p<4;p++) if(players[p].type==='ai'&&au.bids[p]===null)
+        processAction(p,{t:'action',action:'hiddenBid',data:{bid:aiBid(p,au)}});
       return;
     }
+
+    /* ── Fixed Price: auctioneer sets price ── */
     if(au.type===1&&au.subPhase==='fixSetPrice'&&players[au.auctioneer].type==='ai'){
-      const price=clamp(Math.floor(aiEstVal(au.artist)*.75),1,G.cash[au.auctioneer]);
+      const val=aiEstVal(au.artist);
+      let priceFrac;
+      if(d==='easy') priceFrac=rnd(30,60)/100;       // often too cheap
+      else if(d==='medium') priceFrac=rnd(68,82)/100;
+      else priceFrac=rnd(80,93)/100;                  // extracts near-full value
+      const price=clamp(Math.floor(val*priceFrac),1,G.cash[au.auctioneer]);
       processAction(au.auctioneer,{t:'action',action:'fixedSetPrice',data:{price}});return;
     }
+
+    /* ── Fixed Price: buyer decides ── */
     if(au.type===1&&au.subPhase==='fixSelling'&&players[au.currentBidder].type==='ai'){
-      const val=aiEstVal(au.artist);const buy=au.price<val&&G.cash[au.currentBidder]>=au.price&&rnd(0,10)>=4;
+      const val=aiEstVal(au.artist);
+      let buy;
+      if(d==='easy'){
+        buy=G.cash[au.currentBidder]>=au.price&&rnd(0,1)===0; // 50/50
+      }else if(d==='medium'){
+        buy=au.price<val&&G.cash[au.currentBidder]>=au.price&&rnd(0,10)>=4;
+      }else{
+        // Hard: buy only when there's a clear profit margin; tighter threshold
+        const owned=G.purchased[au.currentBidder].filter(c=>c.artist===au.artist).length;
+        const adjVal=val*(1+owned*0.12); // more valuable if they own paintings already
+        buy=au.price<adjVal*0.88&&G.cash[au.currentBidder]>=au.price;
+      }
       processAction(au.currentBidder,{t:'action',action:'fixedDecide',data:{buy}});return;
     }
+
+    /* ── Once Around: single bid or pass ── */
     if(au.type===2&&players[au.currentBidder].type==='ai'){
-      const val=aiEstVal(au.artist);const maxBid=Math.floor(val*rnd(55,80)/100);const minBid=au.highBid+1;
-      if(maxBid>=minBid&&G.cash[au.currentBidder]>=minBid) processAction(au.currentBidder,{t:'action',action:'onceAroundBid',data:{bid:clamp(minBid,minBid,Math.min(maxBid,G.cash[au.currentBidder]))}});
-      else processAction(au.currentBidder,{t:'action',action:'onceAroundBid',data:{bid:0}});
+      const val=aiEstVal(au.artist)*(au.cards.length===2?1.7:1);
+      let lo,hi;
+      if(d==='easy')      {lo=35;hi=55;}
+      else if(d==='medium'){lo=55;hi=80;}
+      else                 {lo=72;hi=92;}
+      const owned=G.purchased[au.currentBidder].filter(c=>c.artist===au.artist).length;
+      const bonus=d==='hard'?owned*8:owned*4;
+      const maxBid=Math.floor(val*rnd(lo,hi)/100+bonus);
+      const minBid=au.highBid+1;
+      if(maxBid>=minBid&&G.cash[au.currentBidder]>=minBid)
+        processAction(au.currentBidder,{t:'action',action:'onceAroundBid',data:{bid:clamp(minBid,minBid,Math.min(maxBid,G.cash[au.currentBidder]))}});
+      else
+        processAction(au.currentBidder,{t:'action',action:'onceAroundBid',data:{bid:0}});
       return;
     }
+
+    /* ── Open: one AI acts per runAI call ── */
     if(au.type===3){
-      // Process ONE AI at a time so the human always gets a turn to bid/pass
       for(let p=0;p<4;p++){
-        if(players[p].type!=='ai') continue;         // skip humans
-        if(au.highBidder===p) continue;              // skip current high bidder
-        if((au.openPassed||[]).includes(p)) continue;// skip already-passed AIs
+        if(players[p].type!=='ai') continue;
+        if(au.highBidder===p) continue;
+        if((au.openPassed||[]).includes(p)) continue;
         const val=aiEstVal(au.artist)*(au.cards.length===2?1.7:1);
-        const maxBid=Math.floor(val*rnd(55,80)/100);
+        let lo,hi;
+        if(d==='easy')      {lo=30;hi=52;}
+        else if(d==='medium'){lo=52;hi=75;}
+        else                 {lo=70;hi=90;}
+        const owned=G.purchased[p].filter(c=>c.artist===au.artist).length;
+        const bonus=d==='hard'?owned*8:owned*4;
+        const maxBid=Math.floor(val*rnd(lo,hi)/100+bonus);
         if(au.highBid+1<=maxBid&&G.cash[p]>=au.highBid+1){
-          processAction(p,{t:'action',action:'openBid',data:{bid:au.highBid+rnd(1,7)}});
-        } else {
+          processAction(p,{t:'action',action:'openBid',data:{bid:au.highBid+rnd(1,d==='hard'?5:10)}});
+        }else{
           processAction(p,{t:'action',action:'openPass',data:{}});
         }
-        // Only one AI acts per runAI call — let human see the state
         setTimeout(runAI,800);
         return;
       }
@@ -870,29 +951,125 @@ function runAI(){
     }
   }
 }
+/* ── AI difficulty helpers ───────────────────────────── */
+function aiDiff(){ return (G&&G.aiDifficulty)||'medium'; }
+
+/* Value estimation — accuracy scales with difficulty */
+function aiEstVal(artist){
+  const rc=G.roundCounts[artist];
+  const acc=G.accumulated[artist];
+  const sorted=[...G.roundCounts].sort((a,b)=>b-a);
+  const pos=sorted.indexOf(rc);
+  const d=aiDiff();
+
+  if(d==='easy'){
+    // Naive: ignores accumulation, treats each round in isolation with noise
+    return rc*8+rnd(-6,10);
+  }
+  if(d==='medium'){
+    // Accumulated + one-round rank projection
+    return acc+(pos<3&&rc>0?RVALS[pos]:4);
+  }
+  // Hard: accumulated + full multi-round projection weighted by confidence
+  // More paintings sold = more confident the rank will hold
+  const confidence=Math.min(1,rc/3);
+  const projBonus=pos<3&&rc>0?RVALS[pos]:0;
+  const roundsLeft=Math.max(0,3-G.round);
+  // Future rounds: artist keeps rank → earns projBonus each round (discounted)
+  const futureVal=projBonus*roundsLeft*0.5*confidence;
+  return acc+projBonus+futureVal;
+}
+
+/* Card selection — strategy depth scales with difficulty */
 function aiPickCard(p){
   const hand=G.hands[p];if(!hand.length) return null;
+  const d=aiDiff();
+
+  if(d==='easy'){
+    // Almost random; tiny preference for the artist with most cards in hand
+    let best=null,score=-Infinity;
+    for(const c of hand){
+      const s=hand.filter(x=>x.artist===c.artist).length+rnd(0,12);
+      if(s>score){score=s;best=c;}
+    }
+    return best;
+  }
+
+  if(d==='medium'){
+    // Heuristic: hand count + accumulated value + race awareness
+    let best=null,score=-Infinity;
+    for(const c of hand){
+      let s=0;
+      const rc=G.roundCounts[c.artist],acc=G.accumulated[c.artist];
+      const ob=G.purchased[p].filter(x=>x.artist===c.artist).length;
+      const hc=hand.filter(x=>x.artist===c.artist).length;
+      s+=hc*3;s+=acc*.4;
+      if(rc>=2)s+=8;if(rc>=3)s+=12;
+      if(rc===4&&ob===0)s-=20;if(rc===4&&ob>0)s+=25;
+      if(c.type===4)s+=(G.round>=2?12:-10);
+      s+=rnd(0,5);
+      if(s>score){score=s;best=c;}
+    }
+    return best;
+  }
+
+  // Hard: full strategic scoring
   let best=null,score=-Infinity;
   for(const c of hand){
-    let s=0;const rc=G.roundCounts[c.artist];const acc=G.accumulated[c.artist];
+    let s=0;
+    const rc=G.roundCounts[c.artist];
     const ob=G.purchased[p].filter(x=>x.artist===c.artist).length;
     const hc=hand.filter(x=>x.artist===c.artist).length;
-    s+=hc*3;s+=acc*.4;if(rc>=2)s+=8;if(rc>=3)s+=12;
-    if(rc===4&&ob===0)s-=20;if(rc===4&&ob>0)s+=25;
-    if(c.type===4)s+=(G.round>=2?12:-10);
-    s+=rnd(0,5);if(s>score){score=s;best=c;}
+    const estV=aiEstVal(c.artist);
+
+    // Core: play high-value artists I already own paintings of
+    s+=estV*0.7;
+    s+=ob*18;       // each owned painting multiplies value of raising this artist
+    s+=hc*6;        // holding many cards = good control over this artist
+
+    // Artist in race? Push it
+    if(rc>=2)s+=22;if(rc>=3)s+=35;
+
+    // Avoid triggering round end on an artist where I own nothing
+    if(rc===4&&ob===0)s-=60;
+    // But if I own paintings and value is high, ending round is profitable
+    if(rc===4&&ob>0&&estV>=20)s+=45;
+
+    // Doubles: save for late rounds when accumulated values are highest
+    if(c.type===4){
+      s+=G.round>=2?25:-20;
+      if(G.accumulated[c.artist]>=20)s+=15; // extra good if artist already rich
+    }
+
+    // Don't waste cards on artists with low value and thin hand count
+    if(estV<8&&hc<3)s-=25;
+
+    s+=rnd(0,3); // tiny noise to avoid determinism
+    if(s>score){score=s;best=c;}
   }
   return best;
 }
-function aiEstVal(artist){
-  const rc=G.roundCounts[artist];const acc=G.accumulated[artist];
-  const sorted=[...G.roundCounts].sort((a,b)=>b-a);const pos=sorted.indexOf(rc);
-  return acc+(pos<3&&rc>0?RVALS[pos]:4);
-}
+
+/* Bid amount — aggression and accuracy scale with difficulty */
 function aiBid(p,au){
   const val=aiEstVal(au.artist)*(au.cards.length===2?1.7:1);
   const owned=G.purchased[p].filter(c=>c.artist===au.artist).length;
-  return Math.max(0,Math.min(Math.floor(val*rnd(50,75)/100*(1+owned*.15)),G.cash[p]));
+  const d=aiDiff();
+  let frac,noise,ownerBonus;
+  if(d==='easy'){
+    frac=rnd(20,48)/100;   // often underbids, sometimes wastes money
+    noise=rnd(-8,12);
+    ownerBonus=owned*3;
+  }else if(d==='medium'){
+    frac=rnd(50,75)/100;
+    noise=rnd(0,5);
+    ownerBonus=owned*6;
+  }else{
+    frac=rnd(70,90)/100;   // bids close to true value
+    noise=rnd(-2,4);
+    ownerBonus=owned*10;   // strong bonus for owning the artist already
+  }
+  return Math.max(0,Math.min(Math.floor(val*frac+ownerBonus+noise),G.cash[p]));
 }
 
 /* ═══════════════════════════════════════════════════
@@ -910,6 +1087,20 @@ function renderGame(){
   renderValueGrid();
   renderHandCards();
   renderAuctionPanel();
+  renderDiffBadge();
+}
+function renderDiffBadge(){
+  const d=G.aiDifficulty||'medium';
+  const labels={easy:'😴 Easy',medium:'🎯 Medium',hard:'🔥 Hard'};
+  let el=document.getElementById('diffBadge');
+  if(!el){
+    el=document.createElement('span');
+    el.id='diffBadge';el.className='diff-badge '+d;
+    const lbl=document.getElementById('handLbl');
+    if(lbl)lbl.after(el);
+  }
+  el.className='diff-badge '+d;
+  el.textContent=labels[d];
 }
 
 function paintBoxesHTML(p){
@@ -1248,6 +1439,12 @@ function renderLobbySlots(){
 /* ═══════════════════════════════════════════════════
    EVENTS
 ═══════════════════════════════════════════════════ */
+document.document.querySelectorAll('.diff-btn').forEach(btn=>{
+  btn.addEventListener('click',()=>{
+    document.querySelectorAll('.diff-btn').forEach(b=>b.classList.remove('active'));
+    btn.classList.add('active');
+  });
+});
 document.getElementById('btnSolo').addEventListener('click',()=>{playSolo(document.getElementById('playerName').value.trim()||'You');});
 document.getElementById('btnCreate').addEventListener('click',()=>{createRoom(document.getElementById('playerName').value.trim()||'Host');});
 document.getElementById('btnJoin').addEventListener('click',()=>{
