@@ -568,21 +568,26 @@ function processAction(fromIdx,msg){
     if(!au||au.type!==3) return;
     const bid=parseInt(data.bid)||0;
     if(bid>au.highBid&&bid<=G.cash[fromIdx]&&bid>0){
-      au.highBid=bid;au.highBidder=fromIdx;au.openPasses=0;
+      au.highBid=bid;au.highBidder=fromIdx;au.openPasses=0;au.openPassed=[];
       broadcastLog(G.players[fromIdx].name+' bids $'+bid+'!',true);syncState();
+      if(isHost) setTimeout(runAI,700);
     }
     return;
   }
   if(action==='openPass'){
     const au=G.auction;
     if(!au||au.type!==3) return;
-    au.openPasses=(au.openPasses||0)+1;
+    if(au.openPassed.includes(fromIdx)) return; // already passed, ignore duplicate
+    au.openPassed.push(fromIdx);
+    au.openPasses=au.openPassed.length;
     broadcastLog(G.players[fromIdx].name+' passes.');
-    const needed=au.highBidder>=0?3:4;
-    if(au.openPasses>=needed){
-      if(au.highBidder<0){broadcastLog(G.players[au.auctioneer].name+' gets it free (no bids)!',true);G.purchased[au.auctioneer].push(...au.cards);afterAuction(au,au.auctioneer);}
+    // Auction ends when every player except the high bidder has passed
+    const activePlayers=au.highBidder>=0?[0,1,2,3].filter(p=>p!==au.highBidder):[0,1,2,3];
+    const allPassed=activePlayers.every(p=>au.openPassed.includes(p));
+    if(allPassed){
+      if(au.highBidder<0){broadcastLog(G.players[au.auctioneer].name+' gets it free (no bids)!',true);G.purchased[au.auctioneer].push(...au.cards);G.roundCounts[au.artist]+=au.cards.length-1;afterAuction(au,au.auctioneer);}
       else{broadcastLog(G.players[au.highBidder].name+' wins open auction for $'+au.highBid+'!',true);completeAuction(au.highBidder,au.highBid,au.auctioneer,au);}
-    } else syncState();
+    } else { syncState(); if(isHost) setTimeout(runAI,700); }
     return;
   }
 }
@@ -599,7 +604,7 @@ function beginAuction(auctioneer,card){
   G.auction={
     auctioneer,origAuctioneer:auctioneer,cards:[card],artist:card.artist,type:card.type,subPhase:null,
     bids:null,price:null,highBid:0,highBidder:-1,
-    currentBidder:-1,dblWaiting:-1,oaCount:0,openPasses:0,
+    currentBidder:-1,dblWaiting:-1,oaCount:0,openPasses:0,openPassed:[],
   };
   if(card.type===4){
     G.auction.subPhase='dblChoose';
@@ -766,13 +771,21 @@ function runAI(){
       return;
     }
     if(au.type===3){
+      // Process ONE AI at a time so the human always gets a turn to bid/pass
       for(let p=0;p<4;p++){
-        if(players[p].type==='ai'&&au.highBidder!==p){
-          const val=aiEstVal(au.artist)*(au.cards.length===2?1.7:1);
-          const maxBid=Math.floor(val*rnd(55,80)/100);
-          if(au.highBid+1<=maxBid&&G.cash[p]>=au.highBid+1){processAction(p,{t:'action',action:'openBid',data:{bid:au.highBid+rnd(1,7)}});setTimeout(runAI,600);return;}
-          else processAction(p,{t:'action',action:'openPass',data:{}});
+        if(players[p].type!=='ai') continue;         // skip humans
+        if(au.highBidder===p) continue;              // skip current high bidder
+        if((au.openPassed||[]).includes(p)) continue;// skip already-passed AIs
+        const val=aiEstVal(au.artist)*(au.cards.length===2?1.7:1);
+        const maxBid=Math.floor(val*rnd(55,80)/100);
+        if(au.highBid+1<=maxBid&&G.cash[p]>=au.highBid+1){
+          processAction(p,{t:'action',action:'openBid',data:{bid:au.highBid+rnd(1,7)}});
+        } else {
+          processAction(p,{t:'action',action:'openPass',data:{}});
         }
+        // Only one AI acts per runAI call — let human see the state
+        setTimeout(runAI,800);
+        return;
       }
       return;
     }
