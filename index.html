@@ -230,6 +230,8 @@ button:disabled{opacity:.35;cursor:not-allowed}
   <div class="card-box" id="roomBox" style="display:none">
     <h3>Room Code — share with friends</h3>
     <div class="room-code" id="lobbyCode">——————</div>
+    <button class="btn-primary" id="btnCopyCode" style="background:#2a2a5a;font-size:13px;padding:7px">📋 Copy Code</button>
+    <div id="hostStatus" class="info-note" style="color:#888">Connecting to relay server…</div>
     <h3 style="margin-top:4px">Players</h3>
     <div id="lobbySlots"></div>
     <button class="btn-primary" id="btnStart" disabled>▶ Start Game</button>
@@ -421,32 +423,41 @@ function playSolo(name){
   startGame();
 }
 
-const PEER_CFG={
-  debug:0,
-  config:{iceServers:[
-    {urls:'stun:stun.l.google.com:19302'},
-    {urls:'stun:stun1.l.google.com:19302'},
-    {urls:'stun:stun2.l.google.com:19302'},
-    {urls:'stun:global.stun.twilio.com:3478'},
-  ]}
-};
+function makePeerCfg(){
+  return {
+    debug:0,
+    host:'0.peerjs.com',port:443,path:'/',secure:true,key:'peerjs',
+    config:{iceServers:[
+      {urls:'stun:stun.l.google.com:19302'},
+      {urls:'stun:stun1.l.google.com:19302'},
+      {urls:'stun:stun2.l.google.com:19302'},
+      {urls:'stun:global.stun.twilio.com:3478'},
+    ]}
+  };
+}
 
 function createRoom(name){
   if(!name){toast('Enter your name first');return;}
   const code=genCode();
   const btnC=document.getElementById('btnCreate');
   btnC.disabled=true;btnC.textContent='Creating…';
-  if(peer){peer.destroy();peer=null;}
+  if(peer){try{peer.destroy();}catch(e){}peer=null;}
 
-  peer=new Peer('MODART-'+code,PEER_CFG);
+  const setHostStatus=(msg,ok)=>{
+    const el=document.getElementById('hostStatus');
+    if(el){el.textContent=msg;el.style.color=ok?'#2ecc71':'#888';}
+  };
+
+  peer=new Peer('MODART-'+code,makePeerCfg());
 
   peer.on('error',e=>{
-    btnC.disabled=false;btnC.textContent='🎨 Create Game (Host)';
     if(e.type==='unavailable-id'){
-      toast('Room code conflict — retrying…');
-      setTimeout(()=>createRoom(name),400);
+      setHostStatus('Code conflict — retrying…',false);
+      setTimeout(()=>createRoom(name),500);
     } else {
-      toast('Host error: '+e.type+'. Check your internet connection.');
+      btnC.disabled=false;btnC.textContent='🎨 Create Room (Host)';
+      setHostStatus('Error: '+e.type,false);
+      toast('Could not create room: '+e.type);
     }
   });
 
@@ -454,11 +465,14 @@ function createRoom(name){
     isHost=true;myIndex=0;
     document.getElementById('lobbyCode').textContent=code;
     document.getElementById('setupBox').style.display='none';
-    document.getElementById('roomBox').style.cssText='display:flex;flex-direction:column';
+    document.getElementById('roomBox').style.cssText='display:flex;flex-direction:column;gap:12px';
+    setHostStatus('✓ Ready — waiting for players to join',true);
     const players=[{name,type:'human'},{name:'AI Alpha',type:'ai'},{name:'AI Beta',type:'ai'},{name:'AI Gamma',type:'ai'}];
     G=freshState(players,'hard');renderLobbySlots();
     document.getElementById('btnStart').disabled=false;
-    toast('Room created! Code: '+code);
+    // wire copy button
+    const cb=document.getElementById('btnCopyCode');
+    if(cb) cb.onclick=()=>{navigator.clipboard.writeText(code).then(()=>toast('Code copied: '+code)).catch(()=>toast('Code: '+code));};
   });
 
   peer.on('connection',conn=>{
@@ -468,7 +482,7 @@ function createRoom(name){
     conns[slot]=conn;
     conn.on('open',()=>{
       conn.send({t:'assigned',index:slot,players:G.players});
-      G.players[slot]={name:'Player'+(slot+1),type:'human'};
+      G.players[slot]={name:'Joining…',type:'human'};
       toAll({t:'lobby',players:G.players},slot);renderLobbySlots();
     });
     conn.on('data',msg=>onHostReceive(slot,msg));
@@ -479,47 +493,76 @@ function createRoom(name){
       else if(G){G.players[slot]={name:'AI '+(slot+1),type:'ai'};renderLobbySlots();}
     });
   });
+
+  // Keep peer alive — reconnect if broker drops registration
+  peer.on('disconnected',()=>{
+    setHostStatus('Relay disconnected — reconnecting…',false);
+    try{peer.reconnect();}catch(e){}
+  });
+  peer.on('close',()=>setHostStatus('Peer closed.',false));
 }
 
 function joinRoom(code,name){
   if(!name){toast('Enter your name first');return;}
   const btnJ=document.getElementById('btnJoin');
   btnJ.disabled=true;btnJ.textContent='Connecting…';
-  if(peer){peer.destroy();peer=null;}
+  if(peer){try{peer.destroy();}catch(e){}peer=null;}
 
-  peer=new Peer(PEER_CFG);
-  let joinTimer=null;
+  let retries=0;
+  const MAX_RETRIES=4;
 
-  const fail=(msg)=>{
-    clearTimeout(joinTimer);
-    btnJ.disabled=false;btnJ.textContent='🔗 Join Game';
-    toast(msg);
-    if(peer&&!peer.destroyed){peer.destroy();peer=null;}
+  const attempt=()=>{
+    if(peer){try{peer.destroy();}catch(e){}peer=null;}
+    peer=new Peer(makePeerCfg());
+    let joinTimer=null;
+
+    const fail=(msg,canRetry)=>{
+      clearTimeout(joinTimer);
+      if(canRetry&&retries<MAX_RETRIES){
+        retries++;
+        btnJ.textContent='Retrying ('+retries+'/'+MAX_RETRIES+')…';
+        toast('Host not found — retrying in 2s…');
+        setTimeout(attempt,2000);
+      } else {
+        btnJ.disabled=false;btnJ.textContent='🔗 Join Room';
+        toast(msg);
+        if(peer&&!peer.destroyed){try{peer.destroy();}catch(e){}peer=null;}
+      }
+    };
+
+    joinTimer=setTimeout(()=>fail('Timed out. Check your internet and the room code.',false),20000);
+
+    peer.on('error',e=>{
+      clearTimeout(joinTimer);
+      if(e.type==='peer-unavailable'){
+        fail('Room "'+code+'" not found — host may still be connecting…',true);
+      } else if(e.type==='network'||e.type==='server-error'||e.type==='socket-error'){
+        fail('Network error ('+e.type+'). Check your connection.',retries<MAX_RETRIES);
+      } else {
+        fail('Error: '+e.type,false);
+      }
+    });
+
+    peer.on('open',()=>{
+      toast('Reached relay server — looking for host…');
+      hostConn=peer.connect('MODART-'+code,{reliable:true,serialization:'json'});
+
+      const connTimer=setTimeout(()=>fail('Host not responding.',true),10000);
+
+      hostConn.on('open',()=>{
+        clearTimeout(joinTimer);
+        clearTimeout(connTimer);
+        btnJ.disabled=false;btnJ.textContent='🔗 Join Room';
+        hostConn.send({t:'hello',name});
+        toast('Connected! Waiting for host…');
+      });
+      hostConn.on('data',onClientReceive);
+      hostConn.on('close',()=>toast('Disconnected from host.'));
+      hostConn.on('error',e=>{clearTimeout(connTimer);fail('Connection dropped: '+e.type,false);});
+    });
   };
 
-  joinTimer=setTimeout(()=>fail('Connection timed out. Is the room code correct?'),18000);
-
-  peer.on('error',e=>{
-    if(e.type==='peer-unavailable') fail('Room "'+code+'" not found. Check the code.');
-    else fail('Error: '+e.type);
-  });
-
-  peer.on('open',()=>{
-    hostConn=peer.connect('MODART-'+code,{reliable:true,serialization:'json'});
-
-    const connTimer=setTimeout(()=>fail('Host not responding. Is the host online?'),12000);
-
-    hostConn.on('open',()=>{
-      clearTimeout(joinTimer);
-      clearTimeout(connTimer);
-      btnJ.disabled=false;btnJ.textContent='🔗 Join Game';
-      hostConn.send({t:'hello',name});
-      toast('Connected — waiting for host…');
-    });
-    hostConn.on('data',onClientReceive);
-    hostConn.on('close',()=>toast('Disconnected from host.'));
-    hostConn.on('error',e=>{clearTimeout(connTimer);fail('Connection dropped: '+e.type);});
-  });
+  attempt();
 }
 function onHostReceive(fromIdx,msg){
   if(!isHost) return;
@@ -1376,26 +1419,13 @@ document.getElementById('btnCancelSel').addEventListener('click',()=>{
   renderAuctionPanel();
 });
 
-/* Override confirmBid to handle card play */
-const _confirmBid=confirmBid;
+/* Override confirmBid to route through host */
 window.confirmBid=function(){
   if(!pendingBid) return;
   toHost({t:'action',action:pendingBid.action,data:pendingBid.data});
   pendingBid=null;
   renderAuctionPanel();
 };
-
-/* ═══════════════════════════════════════════════════
-   LOG TOGGLE
-═══════════════════════════════════════════════════ */
-document.getElementById('bottomLogHeader').addEventListener('click',()=>{
-  logCollapsed=!logCollapsed;
-  const content=document.getElementById('bottomLogContent');
-  const btn=document.getElementById('bottomLogToggle');
-  content.style.display=logCollapsed?'none':'block';
-  btn.textContent=logCollapsed?'▼ show':'▲ hide';
-});
-
 
 /* LOBBY BUTTON LISTENERS */
 document.getElementById('btnSolo').addEventListener('click',()=>{
@@ -1404,10 +1434,14 @@ document.getElementById('btnSolo').addEventListener('click',()=>{
 document.getElementById('btnCreate').addEventListener('click',()=>{
   createRoom(document.getElementById('playerName').value.trim()||'Host');
 });
+const roomInput=document.getElementById('roomInput');
+roomInput.addEventListener('input',()=>{
+  roomInput.value=roomInput.value.toUpperCase().replace(/[^A-Z0-9]/g,'').slice(0,6);
+});
 document.getElementById('btnJoin').addEventListener('click',()=>{
-  const code=document.getElementById('roomInput').value.trim().toUpperCase();
+  const code=roomInput.value.trim().toUpperCase().replace(/[^A-Z0-9]/g,'');
   const name=document.getElementById('playerName').value.trim()||'Guest';
-  if(code.length!==6){toast('Enter a 6-letter room code');return;}
+  if(code.length!==6){toast('Enter the full 6-character room code');return;}
   joinRoom(code,name);
 });
 document.getElementById('btnStart').addEventListener('click',()=>{
@@ -1427,6 +1461,13 @@ document.getElementById('btnPlayAgain').addEventListener('click',()=>{
   G=freshState(ps,'hard');
   showScreen('sGame');
   startGame();
+});
+document.getElementById('bottomLogHeader').addEventListener('click',()=>{
+  logCollapsed=!logCollapsed;
+  const content=document.getElementById('bottomLogContent');
+  const btn=document.getElementById('bottomLogToggle');
+  content.style.display=logCollapsed?'none':'block';
+  btn.textContent=logCollapsed?'\u25bc show':'\u25b2 hide';
 });
 </script>
 </body>
