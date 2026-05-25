@@ -142,6 +142,8 @@ button:disabled{opacity:.35;cursor:not-allowed}
 .ap-btn.no{background:#3a1a1a;color:#e08080;border-color:#5a2a2a}
 .ap-btn.no:hover{background:#4a2020}
 .ap-btn.warn{background:#3a2a10;color:#e0b060;border-color:#5a4020}
+.round-end-warn{border:2px solid #e94560 !important;background:#1a0a0f !important;animation:pulse-warn 1s ease-in-out infinite alternate}
+@keyframes pulse-warn{from{border-color:#e94560}to{border-color:#ff8060}}
 .ap-msg{font-size:11px;color:#6070a0;margin:4px 0;line-height:1.5}
 .ap-msg.alert{color:#e0b060}
 .ap-bids{font-size:10px;color:#506090;margin-top:4px;line-height:1.7}
@@ -623,10 +625,10 @@ function processAction(fromIdx,msg){
       let next=(au.dblWaiting+1)%4;
       // skip back to auctioneer check
       if(next===au.origAuctioneer){
-        // full circle — nobody paired, auctioneer gets it free
+        // full circle — nobody paired, auctioneer keeps first card for free
+        // roundCounts was already incremented in beginAuction — do NOT increment again
         broadcastLog(G.players[au.origAuctioneer].name+' gets the painting for free! (no one paired)',true);
         G.purchased[au.origAuctioneer].push(au.cards[0]);
-        G.roundCounts[au.artist]++;
         afterAuction(au,au.origAuctioneer);
       } else {
         au.dblWaiting=next;
@@ -720,7 +722,7 @@ function processAction(fromIdx,msg){
     const activePlayers=au.highBidder>=0?[0,1,2,3].filter(p=>p!==au.highBidder):[0,1,2,3];
     const allPassed=activePlayers.every(p=>au.openPassed.includes(p));
     if(allPassed){
-      if(au.highBidder<0){broadcastLog(G.players[au.auctioneer].name+' gets it free (no bids)!',true);G.purchased[au.auctioneer].push(...au.cards);G.roundCounts[au.artist]+=au.cards.length-1;afterAuction(au,au.auctioneer);}
+      if(au.highBidder<0){broadcastLog(G.players[au.auctioneer].name+' gets it free (no bids)!',true);G.purchased[au.auctioneer].push(...au.cards);afterAuction(au,au.auctioneer);}
       else{broadcastLog(G.players[au.highBidder].name+' wins open auction for $'+au.highBid+'!',true);completeAuction(au.highBidder,au.highBid,au.auctioneer,au);}
     } else { syncState(); if(isHost) setTimeout(runAI,700); }
     return;
@@ -748,8 +750,11 @@ function beginAuction(auctioneer,card){
     broadcastLog(G.players[auctioneer].name+' — do you want to pair a second '+ARTISTS[card.artist]+'?');
     G.phase='AUCTION';syncState();return;
   }
-  broadcastLog(G.players[auctioneer].name+':');
-  broadcastLog(ARTISTS[card.artist]+' ['+TYPES[card.type]+'] up for auction.',true);
+  // Hidden auctions are silent — no log entry
+  if(card.type!==0){
+    broadcastLog(G.players[auctioneer].name+':');
+    broadcastLog(ARTISTS[card.artist]+' ['+TYPES[card.type]+'] up for auction.',true);
+  }
   G.phase='AUCTION';initAuctionType(G.auction);
 }
 
@@ -766,10 +771,9 @@ function resolveHidden(au){
   let best=-1,winner=-1;
   const order=[au.auctioneer,...[0,1,2,3].filter(i=>i!==au.auctioneer)];
   for(const p of order) if(au.bids[p]>best){best=au.bids[p];winner=p;}
-  const reveal=au.bids.map((b,i)=>G.players[i].name+':$'+b).join(' | ');
-  broadcastLog('Bids: '+reveal,true);
-  if(winner<0||best<=0){broadcastLog(G.players[au.auctioneer].name+' keeps it (no bids).',true);G.purchased[au.auctioneer].push(...au.cards);afterAuction(au,au.auctioneer);}
-  else{broadcastLog(G.players[winner].name+' wins for $'+best+'!',true);completeAuction(winner,best,au.auctioneer,au);}
+  // Hidden auction: no log — result is silent
+  if(winner<0||best<=0){G.purchased[au.auctioneer].push(...au.cards);afterAuction(au,au.auctioneer);}
+  else{completeAuction(winner,best,au.auctioneer,au);}
 }
 function resolveOnceAround(au){
   if(au.highBidder<0){broadcastLog(G.players[au.auctioneer].name+' gets it free (no bids).',true);G.purchased[au.auctioneer].push(...au.cards);afterAuction(au,au.auctioneer);}
@@ -1280,10 +1284,10 @@ function renderAuctionPanel(){
 
   // Pending bid confirmation takes priority
   if(pendingBid){
-    el.innerHTML=`<div class="ap-field"><span class="ap-fl">Confirm your action</span></div>
-      <div class="ap-confirm"><p>${esc(pendingBid.label)}</p>
+    el.innerHTML=`<div class="ap-field"><span class="ap-fl">${pendingBid.endsRound?'⚠️ Round End Warning':'Confirm your action'}</span></div>
+      <div class="ap-confirm${pendingBid.endsRound?' round-end-warn':''}"><p>${esc(pendingBid.label)}</p>
         <div class="ap-row">
-          <button class="ap-btn go" onclick="confirmBid()">✓ Confirm</button>
+          <button class="ap-btn ${pendingBid.endsRound?'warn':'go'}" onclick="confirmBid()">${pendingBid.endsRound?'🗑️ Discard &amp; End Round':'✓ Confirm'}</button>
           <button class="ap-btn no" onclick="cancelBid()">✕ Cancel</button>
         </div>
       </div>`;
@@ -1399,9 +1403,13 @@ document.getElementById('btnPlaySelected').addEventListener('click',()=>{
   const card=G.hands[myIndex].find(c=>c.id===selectedCardId);
   if(!card) return;
   if(isMyTurn){
-    const label=`Play ${ARTISTS[card.artist]} [${TYPES[card.type]}] for auction?`;
+    const countAfter=(G.roundCounts[card.artist]||0)+1;
+    const endsRound=countAfter>=ENDTRIG;
+    const label=endsRound
+      ? `⚠️ This is the 5th ${ARTISTS[card.artist]} — the card will be DISCARDED and the round ends immediately. Proceed?`
+      : `Play ${ARTISTS[card.artist]} [${TYPES[card.type]}] for auction?`;
     // confirm then send
-    pendingBid={action:'playCard',data:{cardId:card.id},label,isCard:true};
+    pendingBid={action:'playCard',data:{cardId:card.id},label,isCard:true,endsRound};
     selectedCardId=null;
     document.getElementById('selectedCardBar').classList.remove('show');
     renderAuctionPanel();
@@ -1464,9 +1472,9 @@ document.getElementById('btnPlayAgain').addEventListener('click',()=>{
 });
 document.getElementById('bottomLogHeader').addEventListener('click',()=>{
   logCollapsed=!logCollapsed;
-  const content=document.getElementById('bottomLogContent');
+  const c=document.getElementById('bottomLogContent');
   const btn=document.getElementById('bottomLogToggle');
-  content.style.display=logCollapsed?'none':'block';
+  c.style.display=logCollapsed?'none':'block';
   btn.textContent=logCollapsed?'\u25bc show':'\u25b2 hide';
 });
 </script>
