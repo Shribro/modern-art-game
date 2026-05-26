@@ -425,6 +425,28 @@ function playSolo(name){
   startGame();
 }
 
+function renderLobbySlots(){
+  const el=document.getElementById('lobbySlots');
+  if(!el||!G) return;
+  el.innerHTML='';
+  G.players.forEach((p,i)=>{
+    const row=document.createElement('div');
+    row.style.cssText='display:flex;align-items:center;gap:10px;padding:6px 10px;border-radius:6px;background:#1a1a30;margin-bottom:4px;font-size:13px;';
+    if(i===myIndex) row.style.border='1px solid #5060c0';
+    const icon=p.type==='ai'?'🤖':'👤';
+    const tag=p.type==='ai'?'<span style="font-size:10px;color:#5060a0;margin-left:6px">AI</span>':'';
+    const you=i===myIndex?'<span style="font-size:10px;color:#8060c0;margin-left:6px">(you)</span>':'';
+    row.innerHTML=`<span style="color:#888;width:14px">${i+1}.</span><span style="font-size:15px">${icon}</span><span style="color:#ccd">${esc(p.name)}</span>${tag}${you}`;
+    el.appendChild(row);
+  });
+  if(!isHost){
+    const note=document.createElement('div');
+    note.style.cssText='text-align:center;color:#5060a0;font-size:12px;margin-top:8px;';
+    note.textContent='Waiting for host to start the game…';
+    el.appendChild(note);
+  }
+}
+
 function makePeerCfg(){
   return {
     debug:0,
