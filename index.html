@@ -416,9 +416,9 @@ function playSolo(name){
   isHost=true;myIndex=0;
   const players=[
     {name,type:'human'},
-    {name:'AI Alpha',type:'ai'},
-    {name:'AI Beta',type:'ai'},
-    {name:'AI Gamma',type:'ai'},
+    {name:'Marcus',type:'ai'},
+    {name:'Priya',type:'ai'},
+    {name:'Elena',type:'ai'},
   ];
   G=freshState(players,'hard');
   showScreen('sGame');
@@ -433,7 +433,13 @@ function makePeerCfg(){
       {urls:'stun:stun.l.google.com:19302'},
       {urls:'stun:stun1.l.google.com:19302'},
       {urls:'stun:stun2.l.google.com:19302'},
+      {urls:'stun:stun3.l.google.com:19302'},
       {urls:'stun:global.stun.twilio.com:3478'},
+      // TURN relay servers — needed when direct P2P fails (strict NAT, different ISPs)
+      {urls:'turn:openrelay.metered.ca:80',username:'openrelayproject',credential:'openrelayproject'},
+      {urls:'turn:openrelay.metered.ca:443',username:'openrelayproject',credential:'openrelayproject'},
+      {urls:'turn:openrelay.metered.ca:443?transport=tcp',username:'openrelayproject',credential:'openrelayproject'},
+      {urls:'turn:openrelay.metered.ca:80?transport=tcp',username:'openrelayproject',credential:'openrelayproject'},
     ]}
   };
 }
@@ -469,7 +475,7 @@ function createRoom(name){
     document.getElementById('setupBox').style.display='none';
     document.getElementById('roomBox').style.cssText='display:flex;flex-direction:column;gap:12px';
     setHostStatus('✓ Ready — waiting for players to join',true);
-    const players=[{name,type:'human'},{name:'AI Alpha',type:'ai'},{name:'AI Beta',type:'ai'},{name:'AI Gamma',type:'ai'}];
+    const players=[{name,type:'human'},{name:'Marcus',type:'ai'},{name:'Priya',type:'ai'},{name:'Elena',type:'ai'}];
     G=freshState(players,'hard');renderLobbySlots();
     document.getElementById('btnStart').disabled=false;
     // wire copy button
@@ -511,56 +517,57 @@ function joinRoom(code,name){
   if(peer){try{peer.destroy();}catch(e){}peer=null;}
 
   let retries=0;
-  const MAX_RETRIES=4;
+  const MAX_RETRIES=7;
 
   const attempt=()=>{
     if(peer){try{peer.destroy();}catch(e){}peer=null;}
     peer=new Peer(makePeerCfg());
     let joinTimer=null;
+    let connTimer=null;
 
     const fail=(msg,canRetry)=>{
-      clearTimeout(joinTimer);
+      clearTimeout(joinTimer);clearTimeout(connTimer);
       if(canRetry&&retries<MAX_RETRIES){
         retries++;
+        const wait=retries<=3?2000:4000;
         btnJ.textContent='Retrying ('+retries+'/'+MAX_RETRIES+')…';
-        toast('Host not found — retrying in 2s…');
-        setTimeout(attempt,2000);
+        toast('Not found — retrying in '+(wait/1000)+'s… (attempt '+retries+')');
+        setTimeout(attempt,wait);
       } else {
         btnJ.disabled=false;btnJ.textContent='🔗 Join Room';
-        toast(msg);
+        toast(msg+' — check code and that host is on the lobby screen.');
         if(peer&&!peer.destroyed){try{peer.destroy();}catch(e){}peer=null;}
       }
     };
 
-    joinTimer=setTimeout(()=>fail('Timed out. Check your internet and the room code.',false),20000);
+    joinTimer=setTimeout(()=>fail('Timed out after 30s.',false),30000);
 
     peer.on('error',e=>{
       clearTimeout(joinTimer);
       if(e.type==='peer-unavailable'){
-        fail('Room "'+code+'" not found — host may still be connecting…',true);
-      } else if(e.type==='network'||e.type==='server-error'||e.type==='socket-error'){
-        fail('Network error ('+e.type+'). Check your connection.',retries<MAX_RETRIES);
+        fail('Room "'+code+'" not found',true);
+      } else if(e.type==='network'||e.type==='server-error'||e.type==='socket-error'||e.type==='socket-closed'){
+        fail('Network error ('+e.type+')',retries<MAX_RETRIES);
       } else {
         fail('Error: '+e.type,false);
       }
     });
 
     peer.on('open',()=>{
-      toast('Reached relay server — looking for host…');
+      toast('Reached relay — looking for room '+code+'…');
       hostConn=peer.connect('MODART-'+code,{reliable:true,serialization:'json'});
 
-      const connTimer=setTimeout(()=>fail('Host not responding.',true),10000);
+      connTimer=setTimeout(()=>fail('Host found but not responding — try again',true),15000);
 
       hostConn.on('open',()=>{
-        clearTimeout(joinTimer);
-        clearTimeout(connTimer);
+        clearTimeout(joinTimer);clearTimeout(connTimer);
         btnJ.disabled=false;btnJ.textContent='🔗 Join Room';
         hostConn.send({t:'hello',name});
-        toast('Connected! Waiting for host…');
+        toast('✓ Connected! Waiting for host to start…');
       });
       hostConn.on('data',onClientReceive);
       hostConn.on('close',()=>toast('Disconnected from host.'));
-      hostConn.on('error',e=>{clearTimeout(connTimer);fail('Connection dropped: '+e.type,false);});
+      hostConn.on('error',e=>{clearTimeout(connTimer);fail('Connection error: '+e.type,false);});
     });
   };
 
@@ -1113,7 +1120,7 @@ function aiBid(p,au){
 ═══════════════════════════════════════════════════ */
 function renderGame(){
   if(!G) return;
-  const pos={top:(myIndex+2)%4,left:(myIndex+3)%4,right:(myIndex+1)%4,bot:myIndex};
+  const pos={top:(myIndex+2)%4,left:(myIndex+1)%4,right:(myIndex+3)%4,bot:myIndex};
   renderTopPlayer(pos.top);
   renderSidePlayer('leftPlayer',pos.left);
   renderSidePlayer('rightPlayer',pos.right);
@@ -1470,7 +1477,6 @@ document.getElementById('btnPlayAgain').addEventListener('click',()=>{
   showScreen('sGame');
   startGame();
 });
-  
 document.getElementById('bottomLogHeader').addEventListener('click',()=>{
   logCollapsed=!logCollapsed;
   const c=document.getElementById('bottomLogContent');
